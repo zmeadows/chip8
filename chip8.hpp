@@ -139,53 +139,50 @@ void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
 {
     assert((opcode & 0xF000) == 0x8000);
 
-    uint8_t* Vx = emu->V + opcode_get_hex_digit_at<1>(opcode);
-    uint8_t* Vy = emu->V + opcode_get_hex_digit_at<2>(opcode);
-    uint8_t* Vf = emu->V + 0xF;
-
-    const uint8_t x = *Vx;
-    const uint8_t y = *Vy;
+    uint8_t& Vx = emu->V[opcode_get_hex_digit_at<1>(opcode)];
+    uint8_t& Vy = emu->V[opcode_get_hex_digit_at<2>(opcode)];
+    uint8_t& Vf = emu->V[0xF];
 
     switch (opcode & 0x000F) {
         case 0x0000: {  // set VX to the value currently in VY
-            *Vx = y;
+            Vx = Vy;
             break;
         }
         case 0x0001: {  // set VX = VX | VY
-            *Vx |= y;
+            Vx |= Vy;
             break;
         }
         case 0x0002: {
-            *Vx &= y;
+            Vx &= Vy;
             break;
         }
         case 0x0003: {
-            *Vx ^= y;
+            Vx ^= Vy;
             break;
         }
         case 0x0004: {  // add VY to VX and set carry bit if needed
-            *Vf = y > 0xFF - x ? 1 : 0;
-            *Vx += y;
+            Vf = Vy > 0xFF - Vx ? 1 : 0;
+            Vx += Vy;
             break;
         }
         case 0x0005: {
-            *Vf = x > y ? 1 : 0;
-            *Vx -= y;
+            Vf = Vx > Vy ? 1 : 0;
+            Vx -= Vy;
             break;
         }
         case 0x0006: {
-            *Vf = (x & 1) > 0;
-            *Vx /= 2;
+            Vf = (Vx & 1) > 0;
+            Vx /= 2;
             break;
         }
         case 0x0007: {
-            *Vf = y > x ? 1 : 0;
-            *Vx = y - x;
+            Vf = Vy > Vx ? 1 : 0;
+            Vx = Vy - Vx;
             break;
         }
         case 0x000E: {
-            *Vf = (x & 128) > 0 ? 1 : 0;
-            *Vx *= 2;
+            Vf = (Vx & 128) > 0 ? 1 : 0;
+            Vx *= 2;
             break;
         }
         default: {
