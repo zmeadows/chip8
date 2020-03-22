@@ -90,14 +90,14 @@ void emulate_0x0NNN_opcode(struct emulator* emu, const uint16_t opcode)
     assert((opcode & 0xF000) == 0x0000);
 
     switch (opcode) {
-        case 0x00E0: {
+        case 0x00E0: {  // clear screen
             for (auto i = 0; i < emulator::screen_width * emulator::screen_height; i++) {
                 emu->gfx[i] = false;
             }
             emu->draw_flag = true;
             break;
         }
-        case 0x00EE: {
+        case 0x00EE: {  // return from a subroutine
             panic_opcode("unimplemented", opcode);
             break;
         }
@@ -111,9 +111,13 @@ void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
 {
     assert((opcode & 0xF000) == 0x8000);
 
+    uint8_t* x = emu->V + opcode_get_hex_digit_at<1>(opcode);
+    uint8_t* y = emu->V + opcode_get_hex_digit_at<2>(opcode);
+    uint8_t* carry = emu->V + 0xF;
+
     switch (opcode & 0x000F) {
         case 0x0000: {
-            panic_opcode("unimplemented", opcode);
+            *x = *y;
             break;
         }
         case 0x0001: {
@@ -129,10 +133,8 @@ void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
             break;
         }
         case 0x0004: {  // add VY to VX and set carry bit if needed
-            const uint8_t y = emu->V[opcode_get_hex_digit_at<2>(opcode)];
-            uint8_t* xptr = emu->V + opcode_get_hex_digit_at<1>(opcode);
-            emu->V[0xF] = y > 0xFF - *xptr ? 1 : 0;
-            *xptr += y;
+            *carry = *y > 0xFF - *x ? 1 : 0;
+            *x += *y;
             break;
         }
         case 0x0005: {
