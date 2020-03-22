@@ -13,6 +13,7 @@
 
 namespace chip8 {
 
+// see https://en.wikipedia.org/wiki/CHIP-8#Virtual_machine_description
 struct emulator {
     static constexpr auto memory_size_bytes = 4096;
     static constexpr auto rom_memory_offset = 0x200;
@@ -130,9 +131,12 @@ void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
             panic_opcode("unimplemented", opcode);
             break;
         }
-        case 0x0004: {
-            const uint8_t from = emu->V[opcode & 0x0F00];
-            panic_opcode("unimplemented", opcode);
+        case 0x0004: {  // add VY to VX and set carry bit if needed
+            const uint8_t y = emu->V[opcode_get_hex_digit_at<2>(opcode)];
+            const uint16_t x_idx = opcode_get_hex_digit_at<1>(opcode);
+            const uint8_t x = emu->V[x_idx];
+            emu->V[0xF] = y > 0xFF - x ? 1 : 0;
+            emu->V[x_idx] += y;
             break;
         }
         case 0x0005: {
