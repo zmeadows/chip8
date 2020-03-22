@@ -28,7 +28,7 @@ struct emulator {
     uint8_t input[key_count] = {0};
     uint16_t idx = 0;     // index register
     uint16_t pc = 0x200;  // program counter
-    uint16_t sp = 0;      // stack pointer
+    uint16_t sp = 0;      // stack "pointer"
     uint8_t delay_timer = 0;
     uint8_t sound_timer = 0;
     bool draw_flag = false;
@@ -68,6 +68,103 @@ inline void clear_screen(struct emulator* emu)
     }
 }
 
+inline void panic_opcode(const char* description, const uint16_t opcode)
+{
+    printf("%s CHIP8 op-code encountered: 0x%04x\n", description, opcode);
+    exit(1);
+};
+
+void emulate_0x0NNN_opcode(struct emulator* emu, const uint16_t opcode)
+{
+    assert((opcode & 0xF000) == 0x0000);
+
+    switch (opcode) {
+        case 0x00E0:
+            clear_screen(emu);
+            break;
+        case 0x00EE:
+            panic_opcode("unimplemented", opcode);
+            break;
+        default:
+            panic_opcode("unimplemented", opcode);
+            break;
+    }
+}
+
+void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
+{
+    assert((opcode & 0xF000) == 0x8000);
+
+    switch (opcode & 0x000F) {
+        case 0x0000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0001:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0002:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0003:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0004:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0005:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0006:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0007:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x000E:
+            panic_opcode("unimplemented", opcode);
+            break;
+        default:
+            panic_opcode("unknown", opcode);
+    }
+}
+
+void emulate_0xFXNN_opcode(struct emulator* emu, const uint16_t opcode)
+{
+    assert((opcode & 0xF000) == 0xF000);
+
+    switch (opcode & 0x00FF) {
+        case 0x0007:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x000A:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0015:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0018:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x001E:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0029:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0033:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0055:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x0065:
+            panic_opcode("unimplemented", opcode);
+            break;
+        default:
+            panic_opcode("unknown", opcode);
+    }
+}
+
 void emulate_cycle(struct emulator* emu)
 {
     auto read_byte_at = [&](uint16_t addr) -> uint8_t {
@@ -79,32 +176,61 @@ void emulate_cycle(struct emulator* emu)
     const uint16_t opcode = read_byte_at(emu->pc) << 8 | read_byte_at(emu->pc + 1);
     debug_print("read opcode 0x%04x at address 0x%08x\n", opcode, emu->pc);
 
-    auto panic_unknown_opcode = [opcode](void) -> void {
-        printf("unknown/unimplemented CHIP8 op-code encountered: 0x%04x\n", opcode);
-        exit(1);
-    };
-
     // 2. execute opcode
     switch (opcode & 0xF000) {
         case 0x0000:
-            if (opcode == 0x00E0) {
-                clear_screen(emu);
-            }
-            else if (opcode == 0x00EE) {
-                // TODO: return from subroutine
-                panic_unknown_opcode();
-            }
-            else {
-                // call RCA 1802 program (not needed for most ROMs)
-                panic_unknown_opcode();
-            }
+            emulate_0x0NNN_opcode(emu, opcode);
+            break;
+        case 0x1000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x2000:  // call subroutine
+            emu->stack_trace[emu->sp] = emu->pc;
+            emu->sp++;
+            emu->pc = opcode & 0x0FFF;
+            break;
+        case 0x3000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x4000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x5000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x6000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x7000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0x8000:
+            emulate_0x8XYN_opcode(emu, opcode);
+            break;
+        case 0x9000:
+            panic_opcode("unimplemented", opcode);
             break;
         case 0xA000:
             emu->idx = opcode & 0x0FFF;
             emu->pc += 2;
             break;
+        case 0xB000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0xC000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0xD000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0xE000:
+            panic_opcode("unimplemented", opcode);
+            break;
+        case 0xF000:
+            emulate_0xFXNN_opcode(emu, opcode);
+            break;
         default:
-            panic_unknown_opcode();
+            panic_opcode("unknown", opcode);
     }
 
     // 3. update timers
