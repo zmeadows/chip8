@@ -116,20 +116,20 @@ void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
     uint8_t* carry = emu->V + 0xF;
 
     switch (opcode & 0x000F) {
-        case 0x0000: {
+        case 0x0000: {  // set VX to the value currently in VY
             *x = *y;
             break;
         }
-        case 0x0001: {
-            panic_opcode("unimplemented", opcode);
+        case 0x0001: {  // set VX = VX | VY
+            *x |= *y;
             break;
         }
         case 0x0002: {
-            panic_opcode("unimplemented", opcode);
+            *x &= *y;
             break;
         }
         case 0x0003: {
-            panic_opcode("unimplemented", opcode);
+            *x ^= *y;
             break;
         }
         case 0x0004: {  // add VY to VX and set carry bit if needed
