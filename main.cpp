@@ -11,7 +11,6 @@ int main(void)
     setup_input();
 
     emulator emu;
-    load_fontset(&emu);
     load_game(&emu, "./roms/pong.rom");
 
     decltype(high_resolution_clock::now()) last_cycle_time;

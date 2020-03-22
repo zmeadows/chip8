@@ -21,24 +21,24 @@ struct emulator {
     static constexpr auto screen_width = 64;
     static constexpr auto screen_height = 32;
     static constexpr auto max_stack_depth = 16;
-    static constexpr auto key_count = 16;
+    static constexpr auto user_input_key_count = 16;
     static constexpr auto register_count = 16;
 
-    uint8_t memory[memory_size_bytes] = {0};
-    bool gfx[screen_width * screen_height] = {false};
-    uint16_t stack_trace[max_stack_depth] = {0};
-    uint8_t V[register_count] = {0};
-    uint8_t input[key_count] = {0};
-    uint16_t idx = 0;     // index register
-    uint16_t pc = 0x200;  // program counter
-    uint16_t sp = 0;      // stack "pointer"
-    uint8_t delay_timer = 0;
-    uint8_t sound_timer = 0;
-    bool draw_flag = false;
-    uint64_t cycles_emulated = 0;
+    uint8_t memory[memory_size_bytes];
+    bool gfx[screen_width * screen_height];
+    uint16_t stack_trace[max_stack_depth];
+    uint8_t V[register_count];
+    uint8_t input[user_input_key_count];
+    uint16_t idx;  // index register
+    uint16_t pc;   // program counter
+    uint16_t sp;   // stack "pointer"
+    uint8_t delay_timer;
+    uint8_t sound_timer;
+    bool draw_flag;
+    uint64_t cycles_emulated;
 };
 
-void load_fontset(struct emulator* emu)
+void reset(struct emulator* emu)
 {
     static constexpr uint8_t chip8_fontset[80] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
@@ -62,6 +62,34 @@ void load_fontset(struct emulator* emu)
     for (auto i = 0; i < 80; i++) {
         emu->memory[i] = chip8_fontset[i];
     }
+
+    for (auto i = 80; i < emulator::memory_size_bytes; i++) {
+        emu->memory[i] = 0;
+    }
+
+    for (auto i = 0; i < emulator::screen_width * emulator::screen_height; i++) {
+        emu->gfx[i] = false;
+    }
+
+    for (auto i = 0; i < emulator::max_stack_depth; i++) {
+        emu->stack_trace[i] = 0;
+    }
+
+    for (auto i = 0; i < emulator::register_count; i++) {
+        emu->V[i] = 0;
+    }
+
+    for (auto i = 0; i < emulator::user_input_key_count; i++) {
+        emu->input[i] = 0;
+    }
+
+    emu->idx = 0;
+    emu->pc = 0x200;
+    emu->sp = 0;
+    emu->delay_timer = 0;
+    emu->sound_timer = 0;
+    emu->draw_flag = false;
+    emu->cycles_emulated = 0;
 }
 
 inline void panic_opcode(const char* description, const uint16_t opcode)
@@ -111,46 +139,53 @@ void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
 {
     assert((opcode & 0xF000) == 0x8000);
 
-    uint8_t* x = emu->V + opcode_get_hex_digit_at<1>(opcode);
-    uint8_t* y = emu->V + opcode_get_hex_digit_at<2>(opcode);
-    uint8_t* carry = emu->V + 0xF;
+    uint8_t* Vx = emu->V + opcode_get_hex_digit_at<1>(opcode);
+    uint8_t* Vy = emu->V + opcode_get_hex_digit_at<2>(opcode);
+    uint8_t* Vf = emu->V + 0xF;
+
+    const uint8_t x = *Vx;
+    const uint8_t y = *Vy;
 
     switch (opcode & 0x000F) {
         case 0x0000: {  // set VX to the value currently in VY
-            *x = *y;
+            *Vx = y;
             break;
         }
         case 0x0001: {  // set VX = VX | VY
-            *x |= *y;
+            *Vx |= y;
             break;
         }
         case 0x0002: {
-            *x &= *y;
+            *Vx &= y;
             break;
         }
         case 0x0003: {
-            *x ^= *y;
+            *Vx ^= y;
             break;
         }
         case 0x0004: {  // add VY to VX and set carry bit if needed
-            *carry = *y > 0xFF - *x ? 1 : 0;
-            *x += *y;
+            *Vf = y > 0xFF - x ? 1 : 0;
+            *Vx += y;
             break;
         }
         case 0x0005: {
-            panic_opcode("unimplemented", opcode);
+            *Vf = x > y ? 1 : 0;
+            *Vx -= y;
             break;
         }
         case 0x0006: {
-            panic_opcode("unimplemented", opcode);
+            *Vf = (x & 1) > 0;
+            *Vx /= 2;
             break;
         }
         case 0x0007: {
-            panic_opcode("unimplemented", opcode);
+            *Vf = y > x ? 1 : 0;
+            *Vx = y - x;
             break;
         }
         case 0x000E: {
-            panic_opcode("unimplemented", opcode);
+            *Vf = (x & 128) > 0 ? 1 : 0;
+            *Vx *= 2;
             break;
         }
         default: {
@@ -350,6 +385,8 @@ void load_game(struct emulator* emu, const char* rom_path)
         printf("error reading input rom file: %s\n", rom_path);
         exit(EXIT_FAILURE);
     }
+
+    reset(emu);
 
     for (uint64_t i = 0; i < file_size_bytes; i++) {
         emu->memory[emulator::rom_memory_offset + i] = buffer[i];
