@@ -64,16 +64,9 @@ void load_fontset(struct emulator* emu)
     }
 }
 
-inline void clear_screen(struct emulator* emu)
-{
-    for (auto i = 0; i < emulator::screen_width * emulator::screen_height; i++) {
-        emu->gfx[i] = false;
-    }
-}
-
 inline void panic_opcode(const char* description, const uint16_t opcode)
 {
-    printf("%s CHIP8 op-code encountered: 0x%04x\n", description, opcode);
+    printf("%s CHIP8 op-code encountered: 0x%04X\n", description, opcode);
     exit(1);
 };
 
@@ -98,15 +91,19 @@ void emulate_0x0NNN_opcode(struct emulator* emu, const uint16_t opcode)
 
     switch (opcode) {
         case 0x00E0: {
-            clear_screen(emu);
+            for (auto i = 0; i < emulator::screen_width * emulator::screen_height; i++) {
+                emu->gfx[i] = false;
+            }
+            emu->draw_flag = true;
             break;
         }
         case 0x00EE: {
             panic_opcode("unimplemented", opcode);
             break;
         }
-        default:
+        default: {
             panic_opcode("unimplemented", opcode);
+        }
     }
 }
 
@@ -133,10 +130,9 @@ void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
         }
         case 0x0004: {  // add VY to VX and set carry bit if needed
             const uint8_t y = emu->V[opcode_get_hex_digit_at<2>(opcode)];
-            const uint16_t x_idx = opcode_get_hex_digit_at<1>(opcode);
-            const uint8_t x = emu->V[x_idx];
-            emu->V[0xF] = y > 0xFF - x ? 1 : 0;
-            emu->V[x_idx] += y;
+            uint8_t* xptr = emu->V + opcode_get_hex_digit_at<1>(opcode);
+            emu->V[0xF] = y > 0xFF - *xptr ? 1 : 0;
+            *xptr += y;
             break;
         }
         case 0x0005: {
@@ -155,8 +151,9 @@ void emulate_0x8XYN_opcode(struct emulator* emu, const uint16_t opcode)
             panic_opcode("unimplemented", opcode);
             break;
         }
-        default:
+        default: {
             panic_opcode("unknown", opcode);
+        }
     }
 }
 
@@ -201,77 +198,106 @@ void emulate_0xFXNN_opcode(struct emulator* emu, const uint16_t opcode)
             panic_opcode("unimplemented", opcode);
             break;
         }
-        default:
+        default: {
             panic_opcode("unknown", opcode);
+        }
     }
 }
 
 void emulate_cycle(struct emulator* emu)
 {
-    auto read_byte_at = [&](uint16_t addr) -> uint8_t {
+    auto read_mem_byte_at = [&](uint16_t addr) -> uint8_t {
         assert(addr < emulator::memory_size_bytes);
         return emu->memory[addr];
     };
 
     // 1. fetch opcode
-    const uint16_t opcode = read_byte_at(emu->pc) << 8 | read_byte_at(emu->pc + 1);
-    debug_print("read opcode 0x%04x at address 0x%08x\n", opcode, emu->pc);
+    const uint16_t opcode = (read_mem_byte_at(emu->pc) << 8) | read_mem_byte_at(emu->pc + 1);
+    debug_print(
+        "read [%lu] opcode 0x%04X "
+        "at address 0x%08x\n",
+        emu->cycles_emulated, opcode, emu->pc);
 
     // 2. execute opcode
     switch (opcode & 0xF000) {
-        case 0x0000:
+        case 0x0000: {
             emulate_0x0NNN_opcode(emu, opcode);
             break;
-        case 0x1000:
+        }
+        case 0x1000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0x2000:  // call subroutine
+        }
+        case 0x2000: {  // 0x2NNN: call subroutine at address NNN
             emu->stack_trace[emu->sp] = emu->pc;
             emu->sp++;
             emu->pc = opcode & 0x0FFF;
             break;
-        case 0x3000:
+        }
+        case 0x3000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0x4000:
+        }
+        case 0x4000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0x5000:
+        }
+        case 0x5000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0x6000:
+        }
+        case 0x6000: {  // 0x6XNN: Set VX register to NN
+            const auto xidx = opcode_get_hex_digit_at<1>(opcode);
+            const uint8_t new_value = 0x00FF & opcode;
+            debug_print(
+                "modifying byte at V%X "
+                "from 0x%02X to 0x%02X\n\n",
+                xidx, emu->V[xidx], new_value);
+
+            emu->V[xidx] = new_value;
+            emu->pc += 2;
+            break;
+        }
+        case 0x7000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0x7000:
-            panic_opcode("unimplemented", opcode);
-            break;
-        case 0x8000:
+        }
+        case 0x8000: {
             emulate_0x8XYN_opcode(emu, opcode);
             break;
-        case 0x9000:
+        }
+        case 0x9000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0xA000:
+        }
+        case 0xA000: {
             emu->idx = opcode & 0x0FFF;
             emu->pc += 2;
             break;
-        case 0xB000:
+        }
+        case 0xB000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0xC000:
+        }
+        case 0xC000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0xD000:
+        }
+        case 0xD000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0xE000:
+        }
+        case 0xE000: {
             panic_opcode("unimplemented", opcode);
             break;
-        case 0xF000:
+        }
+        case 0xF000: {
             emulate_0xFXNN_opcode(emu, opcode);
             break;
-        default:
+        }
+        default: {
             panic_opcode("unknown", opcode);
+        }
     }
 
     // 3. update timers
@@ -327,7 +353,8 @@ void load_game(struct emulator* emu, const char* rom_path)
         emu->memory[emulator::rom_memory_offset + i] = buffer[i];
     }
 
-    printf("successfully loaded %lu bytes from %s into memory.\n", file_size_bytes, rom_path);
+    printf("successfully loaded %lu bytes from %s into memory.\n\n", file_size_bytes,
+           rom_path);
 
     free(buffer);
 }
