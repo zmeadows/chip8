@@ -22,7 +22,10 @@ int main(void)
         emulate_cycle(&emu);
         last_cycle_time = high_resolution_clock::now();
 
-        if (emu.draw_flag) draw_screen(&emu);
+        if (emu.draw_flag) {
+            draw_screen(&emu);
+            emu.draw_flag = false;
+        }
 
         read_key_state(&emu);
 
