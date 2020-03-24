@@ -1,5 +1,7 @@
 #pragma once
 
+#include "chip8_core.hpp"
+
 namespace chip8 {
 
 void init(void);

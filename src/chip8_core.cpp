@@ -2,10 +2,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstdarg>
 
-#include "chip8.hpp"
+#include "chip8_core.hpp"
 
 namespace {
+
+using namespace chip8::core;
 
 constexpr bool CHIP8_DEBUG = false;
 
@@ -34,7 +37,7 @@ constexpr uint16_t ith_hex_digit(uint16_t opcode)
     return (mask & opcode) >> offset;
 }
 
-void reset(struct emulator& emu)
+void reset(struct chip8::core::emulator& emu)
 {
     static constexpr uint8_t chip8_fontset[80] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0,  // 0
@@ -59,11 +62,11 @@ void reset(struct emulator& emu)
         emu.memory[i] = chip8_fontset[i];
     }
 
-    for (auto i = 80; i < emulator::memory_size_bytes; i++) {
+    for (auto i = 80; i < chip8::core::emulator::memory_size_bytes; i++) {
         emu.memory[i] = 0;
     }
 
-    for (auto i = 0; i < emulator::screen_width * emulator::screen_height; i++) {
+    for (auto i = 0; i < chip8::core::emulator::pixel_count; i++) {
         emu.gfx[i] = false;
     }
 
@@ -86,7 +89,7 @@ void reset(struct emulator& emu)
     emu.sound_timer = 0;
     emu.draw_flag = false;
     emu.cycles_emulated = 0;
-    emu.last_cycle = chip8::core::clock::now();
+    emu.last_cycle = chip8::clock::now();
 }
 
 void emulate_0x0NNN_opcode_cycle(struct emulator& emu, const uint16_t opcode, bool& bump_pc)
@@ -228,7 +231,62 @@ void emulate_0xFXNN_opcode_cycle(struct emulator& emu, const uint16_t opcode)
 
 }  // namespace
 
-namespace chip::core {
+namespace chip8::core {
+
+struct emulator create_emulator(const char* rom_path)
+{
+    FILE* rom_file = nullptr;
+    errno_t read_err = fopen_s(&rom_file, rom_path, "rb");
+
+    if (rom_file == nullptr || read_err != 0) {
+        printf("failed to load ROM from file: %s\n", rom_path);
+        exit(EXIT_FAILURE);
+    }
+
+    fseek(rom_file, 0, SEEK_END);
+    const auto ftell_ret = ftell(rom_file);
+    rewind(rom_file);
+
+    if (ftell_ret < 0) {
+        printf("error determining size of input ROM file: %s\n", rom_path);
+        exit(EXIT_FAILURE);
+    }
+
+    const auto file_size_bytes = static_cast<uint64_t>(ftell_ret);
+
+    if (file_size_bytes > chip8::core::emulator::allowed_rom_memory) {
+        printf("requested ROM file (%s) doesn't fit in CHIP8 memory!\n", rom_path);
+        exit(EXIT_FAILURE);
+    }
+
+    auto buffer = (uint8_t*)malloc(sizeof(uint8_t) * file_size_bytes);
+
+    if (buffer == nullptr) {
+        printf("failed to allocate temporary heap space for loading rom!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    const uint64_t file_bytes_read = fread(buffer, 1, file_size_bytes, rom_file);
+    if (file_bytes_read != file_size_bytes) {
+        printf("error reading input rom file: %s\n", rom_path);
+        free(buffer);
+        exit(EXIT_FAILURE);
+    }
+
+    emulator emu;
+    reset(emu);
+
+    for (uint64_t i = 0; i < file_size_bytes; i++) {
+        emu.memory[emulator::rom_memory_offset + i] = buffer[i];
+    }
+
+    printf("successfully loaded %d bytes from %s into memory.\n\n", (int)file_size_bytes,
+           rom_path);
+
+    free(buffer);
+
+    return emu;
+}
 
 void emulate_cycle(struct emulator& emu)
 {
@@ -364,7 +422,7 @@ void emulate_cycle(struct emulator& emu)
 
     emu.cycles_emulated++;
 
-    emu.last_cycle = chip8::core::clock::now();
+    emu.last_cycle = chip8::clock::now();
 }
 
-}  // namespace chip::core
+}

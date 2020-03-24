@@ -2,9 +2,11 @@
 
 #include <chrono>
 
-namespace chip8::core {
+namespace chip8 {
+using clock = std::chrono::high_resolution_clock;
+}
 
-namespace clock = std::chrono::high_resolution_clock;
+namespace chip8::core {
 
 // see https://en.wikipedia.org/wiki/CHIP-8#Virtual_machine_description
 struct emulator {
@@ -13,6 +15,7 @@ struct emulator {
     static constexpr auto allowed_rom_memory = memory_size_bytes - rom_memory_offset;
     static constexpr auto screen_width = 64;
     static constexpr auto screen_height = 32;
+    static constexpr auto pixel_count = screen_width * screen_height;
     static constexpr auto max_stack_depth = 16;
     static constexpr auto user_input_key_count = 16;
     static constexpr auto register_count = 16;
@@ -31,9 +34,10 @@ struct emulator {
     bool draw_flag;
     uint64_t cycles_emulated;
 
-    chip8::core::clock::time_point last_cycle;
+    chip8::clock::time_point last_cycle;
 };
 
+struct emulator create_emulator(const char* rom_path);
 void emulate_cycle(struct emulator& emu);
 
-}  // namespace chip8::core
+}
