@@ -85,6 +85,11 @@ void init(void)
         exit(EXIT_FAILURE);
     }
 
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    // glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
     static char window_name_buffer[32];
     sprintf_s(window_name_buffer, 32, "CHIP-8 (version %d.%d)", CHIP8_VERSION_MAJOR,
               CHIP8_VERSION_MINOR);
@@ -93,19 +98,58 @@ void init(void)
 
     if (window == nullptr) {
         glfwTerminate();
+        exit(EXIT_FAILURE);
     }
 
-    glfwSetKeyCallback(window, ::key_callback);
-
     glfwMakeContextCurrent(window);
+
+    glViewport(0, 0, 640, 320);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluPerspective(45.0f, (float)640 / (float)320, 0.1f, 1000.0f);
+    gluLookAt(0.0f, 0.0f, 30, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+    glMatrixMode(GL_MODELVIEW);
+
+    GLenum err = glewInit();
+    if (GLEW_OK != err) {
+        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+
+    const GLubyte* renderer = glGetString(GL_RENDERER); // get renderer string
+    const GLubyte* version = glGetString(GL_VERSION);   // version as a string
+    printf("Renderer: %s\n", renderer);
+    printf("OpenGL version supported %s\n", version);
+
+    // tell GL to only draw onto a pixel if the shape is closer to the viewer
+    glEnable(GL_DEPTH_TEST); // enable depth-testing
+    glDepthFunc(GL_LESS);    // depth-testing interprets a smaller value as "closer"
+
+    glfwSetKeyCallback(window, ::key_callback);
 }
 
 void terminate(void) { glfwTerminate(); }
 
 void draw_screen(const struct chip8::core::emulator&)
 {
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glColor3f(1, 1, 1);
+
+    glBegin(GL_LINE_LOOP);
+    glVertex2f(0.25, 0.25);
+    glVertex2f(0.75, 0.25);
+    glVertex2f(0.75, 0.75);
+    glVertex2f(0.25, 0.75);
+    glEnd();
+    glFlush();
+
     glfwSwapBuffers(window);
+
+    printf("drawing\n");
 }
 
 void update_input_state(struct chip8::core::emulator& emu)

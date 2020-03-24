@@ -23,6 +23,7 @@ bool tick(struct chip8::core::emulator& emu)
 
     chip8::core::emulate_cycle(emu);
 
+    emu.draw_flag = true;
     if (emu.draw_flag) {
         chip8::glfw::draw_screen(emu);
         emu.draw_flag = false;
