@@ -10,6 +10,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 file(GLOB CHIP8_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp" "${CMAKE_SOURCE_DIR}/src/*.hpp")
 add_executable(chip8 ${CMAKE_SOURCE_DIR}/src/main.cpp ${CHIP8_SOURCES})
 
+if (MSVC)
+    # warning level 4 and all warnings as errors
+    target_compile_options(chip8 PUBLIC /W4 /WX)
+else()
+    # lots of warnings and all warnings as errors
+    target_compile_options(chip8 PUBLIC -Wall -Wextra -pedantic -Werror)
+endif()
+
 find_package(OpenGL REQUIRED)
 
 target_include_directories(chip8 PUBLIC "third_party/glfw-3.3.2/include")
