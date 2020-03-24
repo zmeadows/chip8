@@ -25,7 +25,7 @@ struct emulator {
     char last_instruction[256];
     uint16_t stack_trace[max_stack_depth];
     uint8_t V[register_count];
-    uint8_t input[user_input_key_count];
+    bool input[user_input_key_count];
     uint16_t idx; // index register
     uint16_t pc;  // program counter
     uint16_t sp;  // stack "pointer"

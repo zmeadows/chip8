@@ -78,7 +78,7 @@ void reset(struct chip8::core::emulator& emu)
     }
 
     for (auto i = 0; i < emulator::user_input_key_count; i++) {
-        emu.input[i] = 0;
+        emu.input[i] = false;
     }
 
     emu.idx = 0;
