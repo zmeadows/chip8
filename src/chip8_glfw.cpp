@@ -23,54 +23,54 @@ void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int 
     const bool state = action == GLFW_PRESS;
 
     switch (key) {
-    case GLFW_KEY_1:
-        input_buffer[0] = state;
-        break;
-    case GLFW_KEY_2:
-        input_buffer[1] = state;
-        break;
-    case GLFW_KEY_3:
-        input_buffer[2] = state;
-        break;
-    case GLFW_KEY_4:
-        input_buffer[3] = state;
-        break;
-    case GLFW_KEY_Q:
-        input_buffer[4] = state;
-        break;
-    case GLFW_KEY_W:
-        input_buffer[5] = state;
-        break;
-    case GLFW_KEY_E:
-        input_buffer[6] = state;
-        break;
-    case GLFW_KEY_R:
-        input_buffer[7] = state;
-        break;
-    case GLFW_KEY_A:
-        input_buffer[8] = state;
-        break;
-    case GLFW_KEY_S:
-        input_buffer[9] = state;
-        break;
-    case GLFW_KEY_D:
-        input_buffer[10] = state;
-        break;
-    case GLFW_KEY_F:
-        input_buffer[11] = state;
-        break;
-    case GLFW_KEY_Z:
-        input_buffer[12] = state;
-        break;
-    case GLFW_KEY_X:
-        input_buffer[13] = state;
-        break;
-    case GLFW_KEY_C:
-        input_buffer[14] = state;
-        break;
-    case GLFW_KEY_V:
-        input_buffer[15] = state;
-        break;
+        case GLFW_KEY_1:
+            input_buffer[0] = state;
+            break;
+        case GLFW_KEY_2:
+            input_buffer[1] = state;
+            break;
+        case GLFW_KEY_3:
+            input_buffer[2] = state;
+            break;
+        case GLFW_KEY_4:
+            input_buffer[3] = state;
+            break;
+        case GLFW_KEY_Q:
+            input_buffer[4] = state;
+            break;
+        case GLFW_KEY_W:
+            input_buffer[5] = state;
+            break;
+        case GLFW_KEY_E:
+            input_buffer[6] = state;
+            break;
+        case GLFW_KEY_R:
+            input_buffer[7] = state;
+            break;
+        case GLFW_KEY_A:
+            input_buffer[8] = state;
+            break;
+        case GLFW_KEY_S:
+            input_buffer[9] = state;
+            break;
+        case GLFW_KEY_D:
+            input_buffer[10] = state;
+            break;
+        case GLFW_KEY_F:
+            input_buffer[11] = state;
+            break;
+        case GLFW_KEY_Z:
+            input_buffer[12] = state;
+            break;
+        case GLFW_KEY_X:
+            input_buffer[13] = state;
+            break;
+        case GLFW_KEY_C:
+            input_buffer[14] = state;
+            break;
+        case GLFW_KEY_V:
+            input_buffer[15] = state;
+            break;
     }
 }
 

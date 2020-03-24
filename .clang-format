@@ -4,4 +4,5 @@ BreakBeforeBraces : Stroustrup
 ColumnLimit : 95
 DerivePointerAlignment : false
 PointerAlignment : Left
-IndentWidth: 4
+IndentWidth : 4
+IndentCaseLabels : true
