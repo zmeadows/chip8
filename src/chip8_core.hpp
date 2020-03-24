@@ -26,9 +26,9 @@ struct emulator {
     uint16_t stack_trace[max_stack_depth];
     uint8_t V[register_count];
     uint8_t input[user_input_key_count];
-    uint16_t idx;  // index register
-    uint16_t pc;   // program counter
-    uint16_t sp;   // stack "pointer"
+    uint16_t idx; // index register
+    uint16_t pc;  // program counter
+    uint16_t sp;  // stack "pointer"
     uint8_t delay_timer;
     uint8_t sound_timer;
     bool draw_flag;
@@ -40,4 +40,4 @@ struct emulator {
 struct emulator create_emulator(const char* rom_path);
 void emulate_cycle(struct emulator& emu);
 
-}
+} // namespace chip8::core

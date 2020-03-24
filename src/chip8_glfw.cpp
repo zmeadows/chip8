@@ -7,21 +7,22 @@
 
 namespace {
 
-GLFWwindow *window = nullptr;
+GLFWwindow* window = nullptr;
 
 }
 
 namespace chip8::glfw {
 
-void init(void) {
+void init(void)
+{
     if (glfwInit() != GLFW_TRUE) {
         fprintf(stderr, "failed to initialize glfw!\n");
         exit(EXIT_FAILURE);
     }
 
     static char window_name_buffer[32];
-    sprintf(window_name_buffer, "CHIP-8 (version %d.%d)",
-            CHIP8_VERSION_MAJOR, CHIP8_VERSION_MINOR);
+    sprintf_s(window_name_buffer, 32, "CHIP-8 (version %d.%d)", CHIP8_VERSION_MAJOR,
+              CHIP8_VERSION_MINOR);
 
     window = glfwCreateWindow(640, 320, window_name_buffer, NULL, NULL);
 
@@ -32,23 +33,16 @@ void init(void) {
     glfwMakeContextCurrent(window);
 }
 
-void terminate(void) {
-    glfwTerminate();
-}
+void terminate(void) { glfwTerminate(); }
 
-void draw_screen(const struct chip8::core::emulator &emu)
+void draw_screen(const struct chip8::core::emulator&)
 {
     glClear(GL_COLOR_BUFFER_BIT);
     glfwSwapBuffers(window);
 }
 
-void update_input_state(const struct chip8::core::emulator &emu)
-{
-    glfwPollEvents();
-}
+void update_input_state(const struct chip8::core::emulator&) { glfwPollEvents(); }
 
-bool user_requested_window_close(void) {
-    return glfwWindowShouldClose(window);
-}
+bool user_requested_window_close(void) { return glfwWindowShouldClose(window); }
 
-}
+} // namespace chip8::glfw

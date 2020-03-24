@@ -14,10 +14,10 @@ bool tick(struct chip8::core::emulator& emu)
     // TODO: implement better timestep solution
     // https://gafferongames.com/post/fix_your_timestep/
 
-    while (true) {  // enforce 60Hz emulation cycle rate
+    while (true) { // enforce 60Hz emulation cycle rate
         const auto right_now = chip8::clock::now();
-        const auto elapsed =
-            std::chrono::duration_cast<std::chrono::duration<double>>(right_now - emu.last_cycle);
+        const auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
+            right_now - emu.last_cycle);
         if (elapsed >= std::chrono::duration<double>{1.0 / 60.0}) break;
     }
 
@@ -35,4 +35,4 @@ bool tick(struct chip8::core::emulator& emu)
     return false;
 }
 
-}  // namespace chip8
+} // namespace chip8

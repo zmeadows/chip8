@@ -8,7 +8,6 @@ int main(void)
 {
     chip8::init();
 
-
     auto emu = chip8::core::create_emulator("./roms/pong.rom");
 
     while (true) {
@@ -20,4 +19,3 @@ int main(void)
 
     return EXIT_SUCCESS;
 };
-
