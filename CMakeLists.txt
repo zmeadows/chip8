@@ -4,13 +4,13 @@ project(chip8 VERSION 0.1
               DESCRIPTION "A CHIP-8 emulator written in C++"
               LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 file(GLOB CHIP8_SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp" "${CMAKE_SOURCE_DIR}/src/*.hpp")
 add_executable(chip8 ${CMAKE_SOURCE_DIR}/src/main.cpp ${CHIP8_SOURCES})
 
-# lots of warnings and all warnings as errors
+# turn on most warnings and treat all warnings as errors
 if (MSVC)
     target_compile_options(chip8 PUBLIC /W4 /WX)
 else()
@@ -32,6 +32,9 @@ target_include_directories(chip8 PUBLIC "third_party/glew-2.1.0/include")
 add_definitions(-DGLEW_STATIC)
 add_subdirectory( ./third_party/glew-2.1.0 )
 target_link_libraries( chip8 libglew_static )
+
+add_subdirectory( ./third_party/imgui-1.75 )
+target_link_libraries(chip8 imgui)
 
 target_include_directories(chip8 PUBLIC src)
 target_include_directories(chip8 PUBLIC "third_party")
