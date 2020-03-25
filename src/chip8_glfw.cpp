@@ -85,6 +85,7 @@ void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int 
     }
 
     if (key_id != -1) {
+        printf("key %x updated with state %d\n", key_id, state);
         input_buffer[key_id] = state;
     }
 }
