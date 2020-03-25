@@ -1,9 +1,9 @@
 #pragma once
 
 #include <chrono>
+#include <deque>
 #include <optional>
 #include <string>
-#include <vector>
 
 namespace chip8 {
 using clock = std::chrono::high_resolution_clock;
@@ -43,7 +43,8 @@ struct emulator {
     chip8::clock::time_point last_cycle;
     uint64_t cycles_emulated;
 
-    std::vector<std::string> instr_history;
+    std::deque<std::string> instr_history;
+    uint64_t history_size;
 };
 
 struct emulator create_emulator(const char* rom_path);

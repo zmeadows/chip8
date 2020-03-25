@@ -33,6 +33,11 @@ void record_instr(struct emulator& emu, const std::string_view& format, Args... 
         snprintf(buf, size, format.data(), args...);
 
         emu.instr_history.emplace_back(buf, buf + size - 1);
+
+        if (emu.instr_history.size() > emu.history_size) {
+            emu.instr_history.pop_front();
+        }
+
         fprintf(stderr, "%s\n", emu.instr_history.back().c_str());
 
         free(buf);
@@ -114,7 +119,10 @@ void reset(struct chip8::core::emulator& emu)
     emu.cycles_emulated = 0;
 
     if constexpr (CHIP8_DEBUG) {
-        emu.instr_history.reserve(2048);
+        emu.history_size = 2048;
+    }
+    else {
+        emu.history_size = 0;
     }
 }
 
