@@ -1,13 +1,26 @@
 #include "chip8.hpp"
 
+#include <cstdlib>
+#include <ctime>
+
+#include "chip8_audio.hpp"
 #include "chip8_core.hpp"
 #include "chip8_glfw.hpp"
 
 namespace chip8 {
 
-void init(void) { chip8::glfw::init(); }
+void init(void)
+{
+    srand((unsigned)time(NULL));
+    chip8::glfw::init();
+    chip8::audio::init();
+}
 
-void terminate(void) { chip8::glfw::terminate(); }
+void terminate(void)
+{
+    chip8::audio::terminate();
+    chip8::glfw::terminate();
+}
 
 bool tick(struct chip8::core::emulator& emu)
 {

@@ -3,16 +3,14 @@
 #include "chip8_glfw.hpp"
 
 #include <cstdio>
-#include <cstdlib>
-#include <ctime>
 
 int main(void)
 {
-    srand((unsigned)time(NULL));
-
     chip8::init();
 
-    auto emu = chip8::core::create_emulator("./roms/BC_test.ch8");
+    char rom_path[512];
+    sprintf_s(rom_path, 512, "%s/roms/BC_test.ch8", CHIP8_ASSETS_DIR);
+    auto emu = chip8::core::create_emulator(rom_path);
 
     while (true) {
         const bool game_finished = chip8::tick(emu);

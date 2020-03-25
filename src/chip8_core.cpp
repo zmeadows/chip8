@@ -4,8 +4,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include <unordered_map>
-
 #include "chip8_core.hpp"
 using namespace chip8::core;
 
@@ -100,7 +98,7 @@ void emulate_0x0NNN_opcode_cycle(struct emulator& emu, const uint16_t opcode, bo
 
     switch (opcode) {
         case 0x00E0: { // CLS: clear screen
-            for (auto i = 0; i < emulator::screen_width * emulator::screen_height; i++) {
+            for (auto i = 0; i < chip8::core::emulator::pixel_count; i++) {
                 emu.gfx[i] = false;
             }
             emu.draw_flag = true;
@@ -330,12 +328,12 @@ void emulate_cycle(struct emulator& emu)
 
             for (auto i = 0; i < N; i++) {
                 uint8_t sprite_bits = emu.memory[emu.idx + i];
-                const uint8_t y = (Vy + i) % emulator::screen_height;
+                const uint8_t y = (Vy + i) % emulator::display_grid_height;
 
                 uint8_t j = 0;
                 while (sprite_bits != 0) {
-                    const uint8_t x = (Vx + j) % emulator::screen_width;
-                    bool& pixel_state = emu.gfx[y * emulator::screen_width + x];
+                    const uint8_t x = (Vx + j) % emulator::display_grid_width;
+                    bool& pixel_state = emu.gfx[y * emulator::display_grid_width + x];
                     const bool new_pixel_state = ((sprite_bits & 1) == 1) ^ pixel_state;
                     if (pixel_state && !new_pixel_state) Vf = 1;
                     if (pixel_state != new_pixel_state) emu.draw_flag = true;
@@ -440,16 +438,22 @@ struct emulator create_emulator(const char* rom_path)
     return emu;
 }
 
-void update_user_input(struct chip8::core::emulator& emu, bool* input_buffer)
+void update_user_input(struct emulator& emu,
+                       const bool new_input[emulator::user_input_key_count])
 {
-    for (uint8_t ikey = 0; ikey < chip8::core::emulator::user_input_key_count; ikey++) {
-        bool& current_key_state = emu.input[ikey];
-        const bool new_key_state = input_buffer[ikey];
-        if (emu.register_awaiting_input && !current_key_state && new_key_state) {
-            emu.V[*(emu.register_awaiting_input)] = ikey;
-            emu.register_awaiting_input = {};
+    if (emu.register_awaiting_input) {
+        const auto& old_input = emu.input;
+        for (uint8_t ikey = 0; ikey < emulator::user_input_key_count; ikey++) {
+            if (!old_input[ikey] && new_input[ikey]) { // => key was pressed
+                emu.V[*(emu.register_awaiting_input)] = ikey;
+                emu.register_awaiting_input = {};
+                break;
+            }
         }
-        current_key_state = new_key_state;
+    }
+
+    for (uint8_t ikey = 0; ikey < emulator::user_input_key_count; ikey++) {
+        emu.input[ikey] = new_input[ikey];
     }
 }
 

@@ -14,15 +14,15 @@ struct emulator {
     static constexpr auto memory_size_bytes = 4096;
     static constexpr auto rom_memory_offset = 0x200;
     static constexpr auto allowed_rom_memory = memory_size_bytes - rom_memory_offset;
-    static constexpr auto screen_width = 64;
-    static constexpr auto screen_height = 32;
-    static constexpr auto pixel_count = screen_width * screen_height;
+    static constexpr auto display_grid_width = 64;
+    static constexpr auto display_grid_height = 32;
+    static constexpr auto pixel_count = display_grid_width * display_grid_height;
     static constexpr auto max_stack_depth = 16;
     static constexpr auto user_input_key_count = 16;
     static constexpr auto register_count = 16;
 
     uint8_t memory[memory_size_bytes];
-    bool gfx[screen_width * screen_height];
+    bool gfx[pixel_count];
     uint16_t stack_trace[max_stack_depth];
     uint8_t V[register_count];
     bool input[user_input_key_count];
@@ -47,6 +47,7 @@ struct emulator {
 
 struct emulator create_emulator(const char* rom_path);
 void emulate_cycle(struct emulator& emu);
-void update_user_input(struct chip8::core::emulator& emu, bool* input_buffer);
+void update_user_input(struct emulator& emu,
+                       const bool new_input[emulator::user_input_key_count]);
 
 } // namespace chip8::core

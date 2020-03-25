@@ -9,11 +9,11 @@ namespace {
 
 GLFWwindow* window = nullptr;
 
-constexpr float grid_width_pixels = 10.f;
+constexpr float display_grid_width_pixels = 10.f;
 constexpr float screen_width_pixels =
-    (float)chip8::core::emulator::screen_width * grid_width_pixels;
+    (float)chip8::core::emulator::display_grid_width * display_grid_width_pixels;
 constexpr float screen_height_pixels =
-    (float)chip8::core::emulator::screen_height * grid_width_pixels;
+    (float)chip8::core::emulator::display_grid_height * display_grid_width_pixels;
 
 bool input_buffer[chip8::core::emulator::user_input_key_count] = {false};
 
@@ -132,36 +132,41 @@ void init(void)
     glfwSetKeyCallback(window, ::key_callback);
 }
 
-void terminate(void) { glfwTerminate(); }
+void terminate(void)
+{
+    glfwDestroyWindow(window);
+    glfwTerminate();
+}
 
 void draw_screen(const struct chip8::core::emulator& emu)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glColor3f(1, 1, 1);
 
-    constexpr auto sw = chip8::core::emulator::screen_width;
-    constexpr auto sh = chip8::core::emulator::screen_height;
-    constexpr float grid_spacing_x = 2.f / sw;
-    constexpr float grid_spacing_y = 2.f / sh;
+    constexpr auto gw = chip8::core::emulator::display_grid_width;
+    constexpr auto gh = chip8::core::emulator::display_grid_height;
+    constexpr float grid_spacing_x = 2.f / gw;
+    constexpr float grid_spacing_y = 2.f / gh;
 
-    for (auto ix = 0; ix < chip8::core::emulator::screen_width; ix++) {
-        for (auto iy = 0; iy < chip8::core::emulator::screen_height; iy++) {
-            if (emu.gfx[iy * sw + ix]) {
+    for (auto ix = 0; ix < chip8::core::emulator::display_grid_width; ix++) {
+        for (auto iy = 0; iy < chip8::core::emulator::display_grid_height; iy++) {
+            if (emu.gfx[iy * gw + ix]) {
                 const float x0 = -1.f + ix * grid_spacing_x;
                 const float y0 = 1.f - iy * grid_spacing_y;
 
                 glBegin(GL_QUADS);
-                glVertex2f(x0, y0);
-                glVertex2f(x0 + grid_spacing_x, y0);
-                glVertex2f(x0 + grid_spacing_x, y0 - grid_spacing_y);
-                glVertex2f(x0, y0 - grid_spacing_y);
+                {
+                    glVertex2f(x0, y0);
+                    glVertex2f(x0 + grid_spacing_x, y0);
+                    glVertex2f(x0 + grid_spacing_x, y0 - grid_spacing_y);
+                    glVertex2f(x0, y0 - grid_spacing_y);
+                }
                 glEnd();
             }
         }
     }
 
     glFlush();
-
     glfwSwapBuffers(window);
 }
 
