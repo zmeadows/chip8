@@ -7,7 +7,8 @@
 
 #include "chip8_core.hpp"
 using namespace chip8::core;
-using namespace chip8::core::detail;
+
+namespace chip8::core {
 
 namespace {
 
@@ -20,6 +21,38 @@ void debug_print(const char* fmt, ...)
         vfprintf(stderr, fmt, argptr);
         va_end(argptr);
     }
+}
+
+template <typename... Args>
+void record_instr(struct emulator& emu, const std::string_view& format, Args... args)
+{
+    if constexpr (CHIP8_DEBUG) {
+        size_t size = snprintf(nullptr, 0, format.data(), args...) + 1; // Extra space for '\0'
+        assert(size > 0);
+
+        auto buf = (char*)malloc(size * sizeof(char));
+        assert(buf != nullptr);
+        snprintf(buf, size, format.data(), args...);
+
+        emu.instr_history.emplace_back(buf, buf + size - 1);
+
+        if (emu.instr_history.size() > emu.history_size) {
+            emu.instr_history.pop_front();
+        }
+
+        fprintf(stderr, "%s\n", emu.instr_history.back().c_str());
+
+        free(buf);
+    }
+}
+
+template <uint16_t index>
+constexpr uint16_t ith_hex_digit(uint16_t opcode)
+{
+    static_assert(index >= 0 && index <= 3);
+    constexpr uint16_t offset = 12 - index * 4;
+    constexpr uint16_t mask = 0x000F << offset;
+    return (mask & opcode) >> offset;
 }
 
 inline void panic_opcode(const char* description, const uint16_t opcode)
@@ -239,8 +272,6 @@ void emulate_0xFXNN_opcode_cycle(struct emulator& emu, const uint16_t opcode)
 }
 
 } // namespace
-
-namespace chip8::core {
 
 void emulate_cycle(struct emulator& emu)
 {

@@ -5,16 +5,18 @@
 
 #include "chip8_config.h"
 
+namespace chip8::glfw {
+
 namespace {
 
 GLFWwindow* emu_window = nullptr;
 GLFWwindow* debug_window = nullptr;
 
-constexpr float display_grid_width_pixels = 10.f;
+constexpr float grid_cell_pixels = 10.f;
 constexpr float screen_width_pixels =
-    (float)chip8::core::emulator::display_grid_width * display_grid_width_pixels;
+    (float)chip8::core::emulator::display_grid_width * grid_cell_pixels;
 constexpr float screen_height_pixels =
-    (float)chip8::core::emulator::display_grid_height * display_grid_width_pixels;
+    (float)chip8::core::emulator::display_grid_height * grid_cell_pixels;
 
 bool input_buffer[chip8::core::emulator::user_input_key_count] = {false};
 
@@ -89,8 +91,6 @@ void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int 
 
 } // namespace
 
-namespace chip8::glfw {
-
 void init(void)
 {
     if (glfwInit() != GLFW_TRUE) {
@@ -130,7 +130,7 @@ void init(void)
     fprintf(stderr, "Renderer: %s\n", renderer);
     fprintf(stderr, "OpenGL version supported %s\n", version);
 
-    glfwSetKeyCallback(emu_window, ::key_callback);
+    glfwSetKeyCallback(emu_window, key_callback);
 }
 
 void terminate(void)
@@ -174,7 +174,7 @@ void draw_screen(const struct chip8::core::emulator& emu)
 void poll_user_input(struct chip8::core::emulator& emu)
 {
     glfwPollEvents();
-    chip8::core::update_user_input(emu, ::input_buffer);
+    chip8::core::update_user_input(emu, input_buffer);
 }
 
 bool user_requested_window_close(void)
