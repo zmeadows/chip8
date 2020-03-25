@@ -398,7 +398,7 @@ void emulate_cycle(struct emulator& emu)
                 uint8_t sprite_bits = emu.memory[emu.idx + i];
                 const uint8_t y = (Vy + i) % emulator::display_grid_height;
 
-                uint8_t j = 0;
+                uint8_t j = 7;
                 while (sprite_bits != 0) {
                     const uint8_t x = (Vx + j) % emulator::display_grid_width;
                     bool& pixel_state = emu.gfx[y * emulator::display_grid_width + x];
@@ -407,7 +407,7 @@ void emulate_cycle(struct emulator& emu)
                     if (pixel_state != new_pixel_state) emu.draw_flag = true;
                     pixel_state = new_pixel_state;
 
-                    j++;
+                    j--;
                     sprite_bits >>= 1;
                 }
             }
