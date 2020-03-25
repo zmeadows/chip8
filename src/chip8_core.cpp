@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 #include "chip8_core.hpp"
 using namespace chip8::core;
@@ -10,7 +11,6 @@ using namespace chip8::core;
 namespace {
 
 constexpr bool CHIP8_DEBUG = true;
-
 void debug_print(const char* fmt, ...)
 {
     if constexpr (CHIP8_DEBUG) {
@@ -18,6 +18,24 @@ void debug_print(const char* fmt, ...)
         va_start(argptr, fmt);
         vfprintf(stderr, fmt, argptr);
         va_end(argptr);
+    }
+}
+
+template <typename... Args>
+void record_instr(struct emulator& emu, const std::string_view& format, Args... args)
+{
+    if constexpr (CHIP8_DEBUG) {
+        size_t size = snprintf(nullptr, 0, format.data(), args...) + 1; // Extra space for '\0'
+        assert(size > 0);
+
+        auto buf = (char*)malloc(size * sizeof(char));
+        assert(buf != nullptr);
+        snprintf(buf, size, format.data(), args...);
+
+        emu.instr_history.emplace_back(buf, buf + size - 1);
+        fprintf(stderr, "%s\n", emu.instr_history.back().c_str());
+
+        free(buf);
     }
 }
 
@@ -94,6 +112,10 @@ void reset(struct chip8::core::emulator& emu)
 
     emu.last_cycle = chip8::clock::now();
     emu.cycles_emulated = 0;
+
+    if constexpr (CHIP8_DEBUG) {
+        emu.instr_history.reserve(2048);
+    }
 }
 
 void emulate_0x0NNN_opcode_cycle(struct emulator& emu, const uint16_t opcode, bool& bump_pc)
@@ -106,6 +128,7 @@ void emulate_0x0NNN_opcode_cycle(struct emulator& emu, const uint16_t opcode, bo
                 emu.gfx[i] = false;
             }
             emu.draw_flag = true;
+            record_instr(emu, "CLS");
             break;
         }
 
@@ -114,6 +137,7 @@ void emulate_0x0NNN_opcode_cycle(struct emulator& emu, const uint16_t opcode, bo
             emu.sp--;
             emu.pc = emu.stack_trace[emu.sp];
             bump_pc = false;
+            record_instr(emu, "RET");
             break;
         }
 
@@ -253,14 +277,12 @@ void emulate_cycle(struct emulator& emu)
     // 1. fetch opcode
     const uint16_t opcode = (read_mem_byte_at(emu.pc) << 8) | read_mem_byte_at(emu.pc + 1);
 
-    debug_print("read [%lu] opcode 0x%04X "
-                "at address 0x%08x\n",
-                emu.cycles_emulated, opcode, emu.pc);
-
     bool bump_pc = true;
 
     const uint16_t X = ith_hex_digit<1>(opcode);
     const uint16_t Y = ith_hex_digit<2>(opcode);
+    const uint16_t NNN = opcode & 0x0FFF;
+    const uint8_t KK = opcode & 0x00FF;
     uint8_t& Vx = emu.V[X];
     uint8_t& Vy = emu.V[Y];
 
@@ -271,23 +293,27 @@ void emulate_cycle(struct emulator& emu)
             break;
         }
         case 0x1000: { // 0x1NNN jump to address NNN
-            emu.pc = opcode & 0x0FFF;
+            emu.pc = NNN;
             bump_pc = false;
+            record_instr(emu, "JP 0x%04X", NNN);
             break;
         }
         case 0x2000: { // 0x2NNN: call subroutine at address NNN
             emu.stack_trace[emu.sp] = emu.pc;
             emu.sp++;
-            emu.pc = opcode & 0x0FFF;
+            emu.pc = NNN;
             bump_pc = false;
+            record_instr(emu, "CALL 0x%04X", NNN);
             break;
         }
         case 0x3000: {
-            if (Vx == (opcode & 0x00FF)) emu.pc += 2;
+            if (Vx == KK) emu.pc += 2;
+            // record_instr(emu, "CALL 0x%04X", NNN);
             break;
         }
         case 0x4000: {
-            if (Vx != (opcode & 0x00FF)) emu.pc += 2;
+            if (Vx != KK) emu.pc += 2;
+            // record_instr(emu, "SE 0x%04X, 0x%04X", X, KK);
             break;
         }
         case 0x5000: { // 0x5XY0
@@ -295,11 +321,11 @@ void emulate_cycle(struct emulator& emu)
             break;
         }
         case 0x6000: { // 0x6XNN: Set VX register to NN
-            Vx = 0x00FF & opcode;
+            Vx = KK;
             break;
         }
         case 0x7000: { // 0x7XNN: Add NN to VX (ignore carry)
-            Vx += (opcode & 0x00FF);
+            Vx += KK;
             break;
         }
         case 0x8000: {
@@ -311,12 +337,12 @@ void emulate_cycle(struct emulator& emu)
             break;
         }
         case 0xA000: {
-            emu.idx = opcode & 0x0FFF;
+            emu.idx = NNN;
             emu.pc += 2;
             break;
         }
         case 0xB000: {
-            emu.pc = emu.V[0] + opcode & 0x0FFF;
+            emu.pc = emu.V[0] + NNN;
             bump_pc = false;
             break;
         }

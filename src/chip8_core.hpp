@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace chip8 {
 using clock = std::chrono::high_resolution_clock;
@@ -41,7 +43,7 @@ struct emulator {
     chip8::clock::time_point last_cycle;
     uint64_t cycles_emulated;
 
-    char last_instruction[256];
+    std::vector<std::string> instr_history;
 };
 
 struct emulator create_emulator(const char* rom_path);
