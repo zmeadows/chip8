@@ -159,50 +159,65 @@ void emulate_0x8XYN_opcode_cycle(struct emulator& emu, const uint16_t opcode)
 {
     assert((opcode & 0xF000) == 0x8000);
 
-    uint8_t& Vx = emu.V[ith_hex_digit<1>(opcode)];
-    uint8_t& Vy = emu.V[ith_hex_digit<2>(opcode)];
+    const uint16_t X = ith_hex_digit<1>(opcode);
+    const uint16_t Y = ith_hex_digit<2>(opcode);
+    uint8_t& Vx = emu.V[X];
+    uint8_t& Vy = emu.V[Y];
     uint8_t& Vf = emu.V[0xF];
 
     switch (opcode & 0x000F) {
-        case 0x0000: { // set VX to the value currently in VY
+        case 0x0000: { // 0x8XY0
             Vx = Vy;
+            record_instr(emu, "LD V%01X, V%01X", X, Y);
             break;
         }
-        case 0x0001: { // set VX = VX | VY
+        case 0x0001: { // 0x8XY1
             Vx |= Vy;
+            record_instr(emu, "OR V%01X, V%01X", X, Y);
             break;
         }
-        case 0x0002: {
+        case 0x0002: { // 0x8XY2
             Vx &= Vy;
+            record_instr(emu, "AND V%01X, V%01X", X, Y);
             break;
         }
-        case 0x0003: {
+        case 0x0003: { // 0x8XY3
             Vx ^= Vy;
+            record_instr(emu, "XOR V%01X, V%01X", X, Y);
             break;
         }
-        case 0x0004: { // add VY to VX and set carry bit if needed
+        // @DEBUG
+        case 0x0004: { // 0x8XY4: add VY to VX and set carry bit if needed
             Vf = Vy > 0xFF - Vx ? 1 : 0;
             Vx += Vy;
+            record_instr(emu, "ADD V%01X, V%01X", X, Y);
             break;
         }
-        case 0x0005: {
+        // @DEBUG
+        case 0x0005: { // 0x8XY5: subtract VY from VX and set carry bit to "NOT borrow"
             Vf = Vx > Vy ? 1 : 0;
             Vx -= Vy;
+            record_instr(emu, "SUB V%01X, V%01X", X, Y);
             break;
         }
-        case 0x0006: {
-            Vf = (Vx & 1) > 0;
+        case 0x0006: { // 0x8XY6: right bitshift VX by 1 (i.e. divide by 2) and set carry bit
+                       // to one if VX is odd, otherwise zero
+            Vf = Vx & 1;
             Vx /= 2;
+            record_instr(emu, "SHR V%01X", X);
             break;
         }
-        case 0x0007: {
+        case 0x0007: { // 0x8XY7: set VX = VY - VX and set carry flag to "NOT borrow"
             Vf = Vy > Vx ? 1 : 0;
             Vx = Vy - Vx;
+            record_instr(emu, "SUBN V%01X, V%01X", X, Y);
             break;
         }
-        case 0x000E: {
-            Vf = (Vx & 128) > 0 ? 1 : 0;
+        case 0x000E: { // 0x8XYE: left bitshift VX by 1 (i.e. multiply by 2) and set carry bit
+                       // to one if MSB of VX is set, otherwise zero
+            Vf = (Vx >= 128) ? 1 : 0;
             Vx *= 2;
+            record_instr(emu, "SHL V%01X", X);
             break;
         }
         default: {
@@ -220,47 +235,57 @@ void emulate_0xFXNN_opcode_cycle(struct emulator& emu, const uint16_t opcode)
     uint8_t& Vx = emu.V[X];
 
     switch (opcode & 0x00FF) {
-        case 0x0007: {
+        case 0x0007: { // 0xFX07
             Vx = emu.delay_timer;
+            record_instr(emu, "LD V%01X, DT", X);
             break;
         }
-        case 0x000A: {
+        case 0x000A: { // 0xFX0A: Wait for a key press, and store the eventual key press in VX.
+                       // This instruction doesn't actually finish until
+                       // chip8::core::update_user_input is called after a new key press.
             emu.register_awaiting_input = X;
             break;
         }
-        case 0x0015: {
+        case 0x0015: { // 0xFX15
             emu.delay_timer = Vx;
+            record_instr(emu, "LD DT, V%01X", X);
             break;
         }
-        case 0x0018: {
+        case 0x0018: { // 0xFX18
             emu.sound_timer = Vx;
+            record_instr(emu, "LD ST, V%01X", X);
             break;
         }
-        case 0x001E: {
+        case 0x001E: { // 0xFX1E
             emu.idx += Vx;
+            record_instr(emu, "ADD I, V%01X", X);
             break;
         }
-        case 0x0029: {
-            emu.idx = 5 * ith_hex_digit<1>(opcode);
+        case 0x0029: { // 0xFX29: set index register to point to fontset location of VX
+            emu.idx = 5 * Vx;
             assert(emu.idx < 80 && emu.idx >= 0);
+            record_instr(emu, "LD F, V%01X", X);
             break;
         }
-        case 0x0033: {
-            emu.memory[I + 0] = (Vx / 100) % 10;
+        case 0x0033: { // 0xFX33: store BCD representation of VX at memory location of I
+            emu.memory[I] = (Vx / 100) % 10;
             emu.memory[I + 1] = (Vx / 10) % 10;
             emu.memory[I + 2] = Vx % 10;
+            record_instr(emu, "LD B, V%01X", X);
             break;
         }
-        case 0x0055: {
+        case 0x0055: { // 0xFX55
             for (uint16_t i = 0; i <= X; i++) {
                 emu.memory[I + i] = emu.V[i];
             }
+            record_instr(emu, "LD [I], V%01X", X);
             break;
         }
-        case 0x0065: {
+        case 0x0065: { // 0xFX65
             for (uint16_t i = 0; i <= X; i++) {
                 emu.V[i] = emu.memory[I + i];
             }
+            record_instr(emu, "LD V%01X, [I]", X);
             break;
         }
         default: {
@@ -298,7 +323,7 @@ void emulate_cycle(struct emulator& emu)
             emulate_0x0NNN_opcode_cycle(emu, opcode, bump_pc);
             break;
         }
-        case 0x1000: { // 0x1NNN jump to address NNN
+        case 0x1000: { // 0x1NNN: jump to address NNN
             emu.pc = NNN;
             bump_pc = false;
             record_instr(emu, "JP 0x%04X", NNN);
@@ -309,54 +334,61 @@ void emulate_cycle(struct emulator& emu)
             emu.sp++;
             emu.pc = NNN;
             bump_pc = false;
-            record_instr(emu, "CALL 0x%04X", NNN);
+            record_instr(emu, "CALL 0x%03X", NNN);
             break;
         }
-        case 0x3000: {
+        case 0x3000: { // 0x3XKK: skip next instruction if VX == kk
             if (Vx == KK) emu.pc += 2;
-            // record_instr(emu, "CALL 0x%04X", NNN);
+            record_instr(emu, "SE V%01x 0x%02X", X, KK);
             break;
         }
-        case 0x4000: {
+        case 0x4000: { // 0x4XKK: skip next instruction if VX != kk
             if (Vx != KK) emu.pc += 2;
-            // record_instr(emu, "SE 0x%04X, 0x%04X", X, KK);
+            record_instr(emu, "SNE V%01X, 0x%02X", X, KK);
             break;
         }
-        case 0x5000: { // 0x5XY0
+        case 0x5000: { // 0x5XY0: skip next instruction if VX == VY
             if (Vx == Vy) emu.pc += 2;
+            record_instr(emu, "SE V%01X, V%01X", X, Y);
             break;
         }
-        case 0x6000: { // 0x6XNN: Set VX register to NN
+        case 0x6000: { // 0x6XKK: Set VX register to KK
             Vx = KK;
+            record_instr(emu, "LD V%01X, 0x%02X", X, KK);
             break;
         }
-        case 0x7000: { // 0x7XNN: Add NN to VX (ignore carry)
+        case 0x7000: { // 0x7XKK: Add KK to VX (ignore carry)
             Vx += KK;
+            record_instr(emu, "ADD V%01X, 0x%02X", X, KK);
             break;
         }
         case 0x8000: {
             emulate_0x8XYN_opcode_cycle(emu, opcode);
             break;
         }
-        case 0x9000: {
+        case 0x9000: { // 0x9XY0: skip next instruction if VX != VY
             if (Vx != Vy) emu.pc += 2;
+            record_instr(emu, "SNE V%01X, V%01X", X, Y);
             break;
         }
-        case 0xA000: {
+        case 0xA000: { // 0xANNN: set index register to NNN
             emu.idx = NNN;
-            emu.pc += 2;
+            record_instr(emu, "LD I, 0x%03X", NNN);
             break;
         }
-        case 0xB000: {
+        case 0xB000: { // 0xBNNN: jump to location V0 + NNN
             emu.pc = emu.V[0] + NNN;
             bump_pc = false;
+            record_instr(emu, "JP V0, 0x%03X", NNN);
             break;
         }
-        case 0xC000: {
-            Vx = rand() & 255;
+        case 0xC000: { // 0xCXKK: generate a random number in the range [0,255], then AND it
+                       // with KK and store in VX
+            Vx = (rand() & 255) & KK; // (x % N) == (x & (n-1)) if n is a power of two
+            record_instr(emu, "RND V%01X, 0x%02X", X, KK);
             break;
         }
-        case 0xD000: { // 0xDXYN: Draw sprite to gfx buffer at coordinates (VX, VY).
+        case 0xD000: { // 0xDXYN: draw sprite to gfx buffer at coordinates (VX, VY).
             const uint16_t N = ith_hex_digit<3>(opcode);
 
             uint8_t& Vf = emu.V[0xF];
@@ -380,17 +412,22 @@ void emulate_cycle(struct emulator& emu)
                 }
             }
 
+            record_instr(emu, "DRW V%01X, V%01X, 0x%01X", X, Y, N);
             break;
         }
         case 0xE000: {
             assert(Vx < emulator::user_input_key_count);
 
             switch (opcode & 0x00FF) {
-                case 0x009E:
+                case 0x009E: // 0xEX9E: skip next instruction if VXth key is pressed
+                    assert(Vx < emulator::user_input_key_count);
                     if (emu.input[Vx]) emu.pc += 2;
+                    record_instr(emu, "SKP V%01X", X);
                     break;
-                case 0x00A1:
+                case 0x00A1: // 0xEXA1: skip next instruction if VXth key is NOT pressed
+                    assert(Vx < emulator::user_input_key_count);
                     if (!emu.input[Vx]) emu.pc += 2;
+                    record_instr(emu, "SKNP V%01X", X);
                     break;
                 default:
                     panic_opcode("unknown", opcode);
@@ -481,7 +518,9 @@ void update_user_input(struct emulator& emu,
         const auto& old_input = emu.input;
         for (uint8_t ikey = 0; ikey < emulator::user_input_key_count; ikey++) {
             if (!old_input[ikey] && new_input[ikey]) { // => key was pressed
-                emu.V[*(emu.register_awaiting_input)] = ikey;
+                const auto X = *emu.register_awaiting_input;
+                emu.V[X] = ikey;
+                record_instr(emu, "LD V%01X, 0x%01X", X, ikey);
                 emu.register_awaiting_input = {};
                 break;
             }
