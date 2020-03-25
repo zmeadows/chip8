@@ -7,7 +7,8 @@
 
 namespace {
 
-GLFWwindow* window = nullptr;
+GLFWwindow* emu_window = nullptr;
+GLFWwindow* debug_window = nullptr;
 
 constexpr float display_grid_width_pixels = 10.f;
 constexpr float screen_width_pixels =
@@ -103,14 +104,14 @@ void init(void)
     sprintf_s(window_name_buffer, 32, "CHIP-8 (version %d.%d)", CHIP8_VERSION_MAJOR,
               CHIP8_VERSION_MINOR);
 
-    window = glfwCreateWindow(640, 320, window_name_buffer, NULL, NULL);
+    emu_window = glfwCreateWindow(640, 320, window_name_buffer, NULL, NULL);
 
-    if (window == nullptr) {
+    if (emu_window == nullptr) {
         glfwTerminate();
         exit(EXIT_FAILURE);
     }
 
-    glfwMakeContextCurrent(window);
+    glfwMakeContextCurrent(emu_window);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     glEnable(GL_DEPTH_TEST);
@@ -129,12 +130,12 @@ void init(void)
     fprintf(stderr, "Renderer: %s\n", renderer);
     fprintf(stderr, "OpenGL version supported %s\n", version);
 
-    glfwSetKeyCallback(window, ::key_callback);
+    glfwSetKeyCallback(emu_window, ::key_callback);
 }
 
 void terminate(void)
 {
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(emu_window);
     glfwTerminate();
 }
 
@@ -167,7 +168,7 @@ void draw_screen(const struct chip8::core::emulator& emu)
     }
 
     glFlush();
-    glfwSwapBuffers(window);
+    glfwSwapBuffers(emu_window);
 }
 
 void poll_user_input(struct chip8::core::emulator& emu)
@@ -176,6 +177,9 @@ void poll_user_input(struct chip8::core::emulator& emu)
     chip8::core::update_user_input(emu, ::input_buffer);
 }
 
-bool user_requested_window_close(void) { return glfwWindowShouldClose(window); }
+bool user_requested_window_close(void)
+{
+    return glfwWindowShouldClose(emu_window) || glfwWindowShouldClose(debug_window);
+}
 
 } // namespace chip8::glfw

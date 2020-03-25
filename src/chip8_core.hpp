@@ -34,15 +34,14 @@ struct emulator {
     uint8_t delay_timer;
     uint8_t sound_timer;
 
-    uint64_t cycles_emulated;
-
-    chip8::clock::time_point last_cycle;
-
-    char last_instruction[256];
-
     std::optional<uint16_t> register_awaiting_input;
 
     bool draw_flag;
+
+    chip8::clock::time_point last_cycle;
+    uint64_t cycles_emulated;
+
+    char last_instruction[256];
 };
 
 struct emulator create_emulator(const char* rom_path);

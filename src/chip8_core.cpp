@@ -84,12 +84,16 @@ void reset(struct chip8::core::emulator& emu)
     emu.idx = 0;
     emu.pc = 0x200;
     emu.sp = 0;
+
     emu.delay_timer = 0;
     emu.sound_timer = 0;
-    emu.draw_flag = false;
-    emu.cycles_emulated = 0;
-    emu.last_cycle = chip8::clock::now();
+
     emu.register_awaiting_input = {};
+
+    emu.draw_flag = false;
+
+    emu.last_cycle = chip8::clock::now();
+    emu.cycles_emulated = 0;
 }
 
 void emulate_0x0NNN_opcode_cycle(struct emulator& emu, const uint16_t opcode, bool& bump_pc)
