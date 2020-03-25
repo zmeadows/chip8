@@ -6,7 +6,6 @@
 #include <cstring>
 
 #include "chip8_core.hpp"
-using namespace chip8::core;
 
 namespace chip8::core {
 
