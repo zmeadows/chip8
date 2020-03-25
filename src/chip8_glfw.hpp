@@ -7,7 +7,7 @@ namespace chip8::glfw {
 void init(void);
 void terminate(void);
 void draw_screen(const struct chip8::core::emulator& emu);
-void update_input_state(struct chip8::core::emulator& emu);
+void poll_user_input(struct chip8::core::emulator& emu);
 bool user_requested_window_close(void);
 
 } // namespace chip8::glfw

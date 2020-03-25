@@ -9,6 +9,12 @@ namespace {
 
 GLFWwindow* window = nullptr;
 
+constexpr float grid_width_pixels = 10.f;
+constexpr float screen_width_pixels =
+    (float)chip8::core::emulator::screen_width * grid_width_pixels;
+constexpr float screen_height_pixels =
+    (float)chip8::core::emulator::screen_height * grid_width_pixels;
+
 bool input_buffer[chip8::core::emulator::user_input_key_count] = {false};
 
 void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int /* mods */)
@@ -22,55 +28,61 @@ void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int 
 
     const bool state = action == GLFW_PRESS;
 
+    int8_t key_id = -1;
+
     switch (key) {
         case GLFW_KEY_1:
-            input_buffer[0] = state;
+            key_id = 0;
             break;
         case GLFW_KEY_2:
-            input_buffer[1] = state;
+            key_id = 1;
             break;
         case GLFW_KEY_3:
-            input_buffer[2] = state;
+            key_id = 2;
             break;
         case GLFW_KEY_4:
-            input_buffer[3] = state;
+            key_id = 3;
             break;
         case GLFW_KEY_Q:
-            input_buffer[4] = state;
+            key_id = 4;
             break;
         case GLFW_KEY_W:
-            input_buffer[5] = state;
+            key_id = 5;
             break;
         case GLFW_KEY_E:
-            input_buffer[6] = state;
+            key_id = 6;
             break;
         case GLFW_KEY_R:
-            input_buffer[7] = state;
+            key_id = 7;
             break;
         case GLFW_KEY_A:
-            input_buffer[8] = state;
+            key_id = 8;
             break;
         case GLFW_KEY_S:
-            input_buffer[9] = state;
+            key_id = 9;
             break;
         case GLFW_KEY_D:
-            input_buffer[10] = state;
+            key_id = 10;
             break;
         case GLFW_KEY_F:
-            input_buffer[11] = state;
+            key_id = 11;
             break;
         case GLFW_KEY_Z:
-            input_buffer[12] = state;
+            key_id = 12;
             break;
         case GLFW_KEY_X:
-            input_buffer[13] = state;
+            key_id = 13;
             break;
         case GLFW_KEY_C:
-            input_buffer[14] = state;
+            key_id = 14;
             break;
         case GLFW_KEY_V:
-            input_buffer[15] = state;
+            key_id = 15;
             break;
+    }
+
+    if (key_id != -1) {
+        input_buffer[key_id] = state;
     }
 }
 
@@ -101,6 +113,9 @@ void init(void)
     glfwMakeContextCurrent(window);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+
     glClearColor(0.0, 0.0, 0.0, 1.0);
 
     const GLenum err = glewInit();
@@ -114,37 +129,46 @@ void init(void)
     fprintf(stderr, "Renderer: %s\n", renderer);
     fprintf(stderr, "OpenGL version supported %s\n", version);
 
-    // tell GL to only draw onto a pixel if the shape is closer to the viewer
-    glEnable(GL_DEPTH_TEST); // enable depth-testing
-    glDepthFunc(GL_LESS);    // depth-testing interprets a smaller value as "closer"
-
     glfwSetKeyCallback(window, ::key_callback);
 }
 
 void terminate(void) { glfwTerminate(); }
 
-void draw_screen(const struct chip8::core::emulator&)
+void draw_screen(const struct chip8::core::emulator& emu)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glColor3f(1, 1, 1);
 
-    glBegin(GL_LINE_LOOP);
-    glVertex2f(-0.5, 0.5);
-    glVertex2f(0.5, 0.5);
-    glVertex2f(0.5, -0.5);
-    glVertex2f(-0.5, -0.5);
-    glEnd();
+    constexpr auto sw = chip8::core::emulator::screen_width;
+    constexpr auto sh = chip8::core::emulator::screen_height;
+    constexpr float grid_spacing_x = 2.f / sw;
+    constexpr float grid_spacing_y = 2.f / sh;
+
+    for (auto ix = 0; ix < chip8::core::emulator::screen_width; ix++) {
+        for (auto iy = 0; iy < chip8::core::emulator::screen_height; iy++) {
+            if (emu.gfx[iy * sw + ix]) {
+                const float x0 = -1.f + ix * grid_spacing_x;
+                const float y0 = 1.f - iy * grid_spacing_y;
+
+                glBegin(GL_QUADS);
+                glVertex2f(x0, y0);
+                glVertex2f(x0 + grid_spacing_x, y0);
+                glVertex2f(x0 + grid_spacing_x, y0 - grid_spacing_y);
+                glVertex2f(x0, y0 - grid_spacing_y);
+                glEnd();
+            }
+        }
+    }
+
     glFlush();
 
     glfwSwapBuffers(window);
 }
 
-void update_input_state(struct chip8::core::emulator& emu)
+void poll_user_input(struct chip8::core::emulator& emu)
 {
     glfwPollEvents();
-    for (auto i = 0; i < chip8::core::emulator::user_input_key_count; i++) {
-        emu.input[i] = ::input_buffer[i];
-    }
+    chip8::core::update_user_input(emu, ::input_buffer);
 }
 
 bool user_requested_window_close(void) { return glfwWindowShouldClose(window); }
