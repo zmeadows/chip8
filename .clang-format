@@ -6,3 +6,4 @@ DerivePointerAlignment : false
 PointerAlignment : Left
 IndentWidth : 4
 IndentCaseLabels : true
+AlwaysBreakTemplateDeclarations : Yes
