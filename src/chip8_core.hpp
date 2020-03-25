@@ -6,8 +6,21 @@
 #include <string>
 
 namespace chip8 {
-using clock = std::chrono::high_resolution_clock;
-}
+
+namespace {
+
+using system_clock = std::chrono::system_clock;
+using steady_clock = std::chrono::steady_clock;
+using high_resolution_clock = std::chrono::high_resolution_clock;
+
+using maxres_sys_or_steady_clock =
+    std::conditional<system_clock::period::den <= steady_clock::period::den, system_clock,
+                     steady_clock>::type;
+} // namespace
+
+using clock = std::conditional<high_resolution_clock::is_steady, high_resolution_clock,
+                               maxres_sys_or_steady_clock>::type;
+} // namespace chip8
 
 namespace chip8::core {
 
