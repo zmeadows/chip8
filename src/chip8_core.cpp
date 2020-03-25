@@ -34,14 +34,13 @@ void record_instr(struct emulator& emu, const std::string_view& format, Args... 
         snprintf(buf, size, format.data(), args...);
 
         emu.instr_history.emplace_back(buf, buf + size - 1);
+        free(buf);
 
         if (emu.instr_history.size() > emu.history_size) {
             emu.instr_history.pop_front();
         }
 
         fprintf(stderr, "%s\n", emu.instr_history.back().c_str());
-
-        free(buf);
     }
 }
 
@@ -60,7 +59,7 @@ inline void panic_opcode(const char* description, const uint16_t opcode)
     exit(1);
 };
 
-void reset(struct chip8::core::emulator& emu)
+void reset(struct emulator& emu)
 {
     static constexpr uint8_t chip8_fontset[80] = {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -85,11 +84,11 @@ void reset(struct chip8::core::emulator& emu)
         emu.memory[i] = chip8_fontset[i];
     }
 
-    for (auto i = 80; i < chip8::core::emulator::memory_size_bytes; i++) {
+    for (auto i = 80; i < emulator::memory_size_bytes; i++) {
         emu.memory[i] = 0;
     }
 
-    for (auto i = 0; i < chip8::core::emulator::pixel_count; i++) {
+    for (auto i = 0; i < emulator::pixel_count; i++) {
         emu.gfx[i] = false;
     }
 
@@ -133,7 +132,7 @@ void emulate_0x0NNN_opcode_cycle(struct emulator& emu, const uint16_t opcode, bo
 
     switch (opcode) {
         case 0x00E0: { // CLS: clear screen
-            for (auto i = 0; i < chip8::core::emulator::pixel_count; i++) {
+            for (auto i = 0; i < emulator::pixel_count; i++) {
                 emu.gfx[i] = false;
             }
             emu.draw_flag = true;
@@ -384,7 +383,7 @@ void emulate_cycle(struct emulator& emu)
             break;
         }
         case 0xE000: {
-            assert(Vx < chip8::core::emulator::user_input_key_count);
+            assert(Vx < emulator::user_input_key_count);
 
             switch (opcode & 0x00FF) {
                 case 0x009E:
@@ -441,7 +440,7 @@ struct emulator create_emulator(const char* rom_path)
 
     const auto file_size_bytes = static_cast<uint64_t>(ftell_ret);
 
-    if (file_size_bytes > chip8::core::emulator::allowed_rom_memory) {
+    if (file_size_bytes > emulator::allowed_rom_memory) {
         printf("requested ROM file (%s) doesn't fit in CHIP8 memory!\n", rom_path);
         exit(EXIT_FAILURE);
     }
