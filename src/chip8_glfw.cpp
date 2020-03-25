@@ -179,7 +179,7 @@ void poll_user_input(struct chip8::core::emulator& emu)
 
 bool user_requested_window_close(void)
 {
-    return glfwWindowShouldClose(emu_window) || glfwWindowShouldClose(debug_window);
+    return glfwWindowShouldClose(emu_window); // || glfwWindowShouldClose(debug_window);
 }
 
 } // namespace chip8::glfw
