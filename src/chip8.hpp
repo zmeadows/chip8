@@ -1,14 +1,11 @@
 #pragma once
 
-#include "chip8_core.hpp"
+#include "chip8_emulator.hpp"
 
 namespace chip8 {
 
-void init(void);
+void init(const char* rom_path);
 void terminate(void);
-
-struct chip8::core::emulator create_emulator(const char* rom_path);
-
-bool tick(struct chip8::core::emulator& emu);
+void run(void);
 
 } // namespace chip8

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "chip8_core.hpp"
+#include "chip8_emulator.hpp"
 
 namespace chip8::audio {
 

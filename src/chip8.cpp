@@ -4,16 +4,18 @@
 #include <ctime>
 
 #include "chip8_audio.hpp"
-#include "chip8_core.hpp"
+#include "chip8_emulator.hpp"
 #include "chip8_glfw.hpp"
+#include "chip8_timer.hpp"
 
 namespace chip8 {
 
-void init(void)
+void init(const char* rom_path)
 {
     srand((unsigned)time(NULL));
     chip8::glfw::init();
     chip8::audio::init();
+    chip8::emulator::init(rom_path);
 }
 
 void terminate(void)
@@ -22,30 +24,36 @@ void terminate(void)
     chip8::glfw::terminate();
 }
 
-bool tick(struct chip8::core::emulator& emu)
+namespace {
+
+// TODO: detect monitor refresh rate
+struct chip8::timer::cycle draw_cycle = chip8::timer::create_cycle(144);
+struct chip8::timer::cycle emulation_cycle = chip8::timer::create_cycle(600);
+struct chip8::timer::cycle delay_sound_cycle = chip8::timer::create_cycle(60);
+
+} // namespace
+
+void run(void)
 {
-    // TODO: implement better timestep solution
-    // https://gafferongames.com/post/fix_your_timestep/
+    while (true) {
+        if (chip8::glfw::user_requested_window_close()) return;
 
-    while (true) { // enforce 60Hz emulation cycle
-        const auto right_now = chip8::clock::now();
-        const auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
-            right_now - emu.last_cycle);
-        if (elapsed >= std::chrono::duration<double>{1.0 / 60.0}) break;
+        if (chip8::timer::is_ready(delay_sound_cycle)) {
+            chip8::emulator::decrement_timers();
+        }
+
+        if (chip8::timer::is_ready(emulation_cycle)) {
+            chip8::glfw::poll_user_input();
+            chip8::emulator::emulate_cycle();
+        }
+
+        // TODO: ensure glfw isn't blocking on this call and the
+        // timing is happening the way it should be
+        if (chip8::emulator::screen_state_changed() && chip8::timer::is_ready(draw_cycle)) {
+            chip8::glfw::draw_screen();
+            chip8::emulator::reset_draw_flag();
+        }
     }
-
-    chip8::core::emulate_cycle(emu);
-
-    if (emu.draw_flag) {
-        chip8::glfw::draw_screen(emu);
-        emu.draw_flag = false;
-    }
-
-    chip8::glfw::poll_user_input(emu);
-
-    if (chip8::glfw::user_requested_window_close()) return true;
-
-    return false;
 }
 
 } // namespace chip8

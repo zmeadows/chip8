@@ -1,13 +1,11 @@
 #pragma once
 
-#include "chip8_core.hpp"
-
 namespace chip8::glfw {
 
 void init(void);
 void terminate(void);
-void draw_screen(const struct chip8::core::emulator& emu);
-void poll_user_input(struct chip8::core::emulator& emu);
+void draw_screen(void);
+void poll_user_input(void);
 bool user_requested_window_close(void);
 
 } // namespace chip8::glfw

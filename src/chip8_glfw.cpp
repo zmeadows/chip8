@@ -1,9 +1,13 @@
 #include "chip8_glfw.hpp"
 
+#include <cstdio>
+#include <cstdlib>
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
 #include "chip8_config.h"
+#include "chip8_emulator.hpp"
 
 namespace chip8::glfw {
 
@@ -12,13 +16,11 @@ namespace {
 GLFWwindow* emu_window = nullptr;
 GLFWwindow* debug_window = nullptr;
 
-constexpr float grid_cell_pixels = 10.f;
-constexpr float screen_width_pixels =
-    (float)chip8::core::emulator::display_grid_width * grid_cell_pixels;
-constexpr float screen_height_pixels =
-    (float)chip8::core::emulator::display_grid_height * grid_cell_pixels;
+constexpr auto grid_cell_pixels = 10;
+constexpr auto screen_width_pixels = emulator::display_grid_width * grid_cell_pixels;
+constexpr auto screen_height_pixels = emulator::display_grid_height * grid_cell_pixels;
 
-bool input_buffer[chip8::core::emulator::user_input_key_count] = {false};
+bool input_buffer[emulator::user_input_key_count] = {false};
 
 void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int /* mods */)
 {
@@ -85,7 +87,7 @@ void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int 
     }
 
     if (key_id != -1) {
-        printf("key %x updated with state %d\n", key_id, state);
+        // printf("key %x updated with state %d\n", key_id, state);
         input_buffer[key_id] = state;
     }
 }
@@ -105,7 +107,8 @@ void init(void)
     sprintf_s(window_name_buffer, 32, "CHIP-8 (version %d.%d)", CHIP8_VERSION_MAJOR,
               CHIP8_VERSION_MINOR);
 
-    emu_window = glfwCreateWindow(640, 320, window_name_buffer, NULL, NULL);
+    emu_window = glfwCreateWindow(screen_width_pixels, screen_height_pixels,
+                                  window_name_buffer, NULL, NULL);
 
     if (emu_window == nullptr) {
         glfwTerminate();
@@ -140,19 +143,21 @@ void terminate(void)
     glfwTerminate();
 }
 
-void draw_screen(const struct chip8::core::emulator& emu)
+void draw_screen(void)
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glColor3f(1, 1, 1);
 
-    constexpr auto gw = chip8::core::emulator::display_grid_width;
-    constexpr auto gh = chip8::core::emulator::display_grid_height;
+    constexpr auto gw = emulator::display_grid_width;
+    constexpr auto gh = emulator::display_grid_height;
     constexpr float grid_spacing_x = 2.f / gw;
     constexpr float grid_spacing_y = 2.f / gh;
 
-    for (auto ix = 0; ix < chip8::core::emulator::display_grid_width; ix++) {
-        for (auto iy = 0; iy < chip8::core::emulator::display_grid_height; iy++) {
-            if (emu.gfx[iy * gw + ix]) {
+    auto gfx = emulator::screen_state();
+
+    for (auto ix = 0; ix < emulator::display_grid_width; ix++) {
+        for (auto iy = 0; iy < emulator::display_grid_height; iy++) {
+            if (gfx[iy * gw + ix]) {
                 const float x0 = -1.f + ix * grid_spacing_x;
                 const float y0 = 1.f - iy * grid_spacing_y;
 
@@ -172,10 +177,10 @@ void draw_screen(const struct chip8::core::emulator& emu)
     glfwSwapBuffers(emu_window);
 }
 
-void poll_user_input(struct chip8::core::emulator& emu)
+void poll_user_input(void)
 {
     glfwPollEvents();
-    chip8::core::update_user_input(emu, input_buffer);
+    emulator::update_user_input(input_buffer);
 }
 
 bool user_requested_window_close(void)
