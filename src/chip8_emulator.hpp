@@ -20,6 +20,7 @@ void emulate_cycle(void);
 void update_user_input(const bool* const new_input);
 
 void decrement_timers(void);
+bool is_beeping(void);
 
 const bool* const screen_state(void);
 bool screen_state_changed(void);

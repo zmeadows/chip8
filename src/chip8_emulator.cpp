@@ -566,6 +566,8 @@ void decrement_timers(void)
     if (sound_timer > 0) sound_timer--;
 }
 
+bool is_beeping(void) { return sound_timer > 0; }
+
 const bool* const screen_state(void) { return gfx; }
 bool screen_state_changed(void) { return draw_flag; }
 void reset_draw_flag(void) { draw_flag = false; }
