@@ -79,8 +79,6 @@ void record_instr(const char* format, Args... args)
         if (instr_history.size() > instr_history_size) {
             instr_history.pop_front();
         }
-
-        fprintf(stderr, "%s\n", instr_history.back().c_str());
     }
 }
 
@@ -166,7 +164,7 @@ void reset(void)
     }
 }
 
-void emulate_0x0NNN_opcode_cycle(const uint16_t opcode, bool& bump_pc)
+void emulate_0x0NNN_opcode_cycle(const uint16_t opcode, bool&)
 {
     assert((opcode & 0xF000) == 0x0000);
 
@@ -184,7 +182,6 @@ void emulate_0x0NNN_opcode_cycle(const uint16_t opcode, bool& bump_pc)
             assert(sp > 0);
             sp--;
             pc = stack_trace[sp];
-            bump_pc = false;
             record_instr("RET");
             break;
         }
@@ -284,7 +281,7 @@ void emulate_0xFXNN_opcode_cycle(const uint16_t opcode)
                        // This instruction doesn't actually finish until
                        // chip8::core::update_user_input is called after a new key press.
             register_awaiting_input = X;
-            break;
+            return;
         }
         case 0x0015: { // 0xFX15
             delay_timer = Vx;
@@ -550,6 +547,8 @@ void update_user_input(const bool* const new_input)
                 V[X] = ikey;
                 record_instr("LD V%01X, 0x%01X", X, ikey);
                 register_awaiting_input = {};
+                pc += 2;
+                cycles_emulated++;
                 break;
             }
         }
