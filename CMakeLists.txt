@@ -40,5 +40,7 @@ set( GLFW_BUILD_INSTALL OFF CACHE BOOL  "GLFW lib only" )
 add_subdirectory( ./third_party/glfw-3.3.2 )
 target_link_libraries( chip8 glfw ${OPENGL_glu_LIBRARY} ${GLFW_LIBRARIES} )
 
+target_include_directories(chip8 PUBLIC "third_party/cxxopts-2.2.0/include")
+
 add_subdirectory( ./third_party/imgui-1.75 )
 target_link_libraries(chip8 imgui)
