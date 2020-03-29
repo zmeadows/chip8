@@ -16,7 +16,7 @@ namespace {
 GLFWwindow* emu_window = nullptr;
 GLFWwindow* debug_window = nullptr;
 
-constexpr auto grid_cell_pixels = 10;
+constexpr auto grid_cell_pixels = 20;
 constexpr auto screen_width_pixels = emulator::display_grid_width * grid_cell_pixels;
 constexpr auto screen_height_pixels = emulator::display_grid_height * grid_cell_pixels;
 
@@ -121,7 +121,7 @@ void init(void)
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
 
-    glClearColor(0.0, 0.0, 0.0, 1.0);
+    glClearColor(0.34375, 0.29296875, 0.32421875, 1.0);
 
     const GLenum err = glewInit();
     if (err != GLEW_OK) {
@@ -145,15 +145,15 @@ void terminate(void)
 
 void draw_screen(void)
 {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glColor3f(1, 1, 1);
-
     constexpr auto gw = emulator::display_grid_width;
     constexpr auto gh = emulator::display_grid_height;
     constexpr float grid_spacing_x = 2.f / gw;
     constexpr float grid_spacing_y = 2.f / gh;
 
     auto gfx = emulator::screen_state();
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glColor3f(0.96484375, 0.62109375, 0.47265625);
 
     for (auto ix = 0; ix < emulator::display_grid_width; ix++) {
         for (auto iy = 0; iy < emulator::display_grid_height; iy++) {
