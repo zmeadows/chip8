@@ -40,3 +40,6 @@ ZXCV
 Emulator passes all tests in BC_test and corax89.
 OpenGL/glew/glfw screen display working correctly.
 No sound or memory/register/disassembly visualization yet.
+
+#### 0.2
+Beep sound effect now included.
