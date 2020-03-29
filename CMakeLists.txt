@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(chip8 VERSION 0.1
+project(chip8 VERSION 0.2
               DESCRIPTION "A CHIP-8 emulator written in C++"
               LANGUAGES CXX)
 
