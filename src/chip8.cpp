@@ -43,20 +43,20 @@ void run(void)
 
         if (chip8::timer::is_ready(delay_sound_cycle)) {
             chip8::emulator::decrement_timers();
+
+            if (!beeping && chip8::emulator::is_beeping()) {
+                beeping = true;
+                chip8::audio::start_beep();
+            }
+            else if (beeping && !chip8::emulator::is_beeping()) {
+                beeping = false;
+                chip8::audio::end_beep();
+            }
         }
 
         if (chip8::timer::is_ready(emulation_cycle)) {
             chip8::glfw::poll_user_input();
             chip8::emulator::emulate_cycle();
-        }
-
-        if (!beeping && chip8::emulator::is_beeping()) {
-            beeping = true;
-            chip8::audio::start_beep();
-        }
-        else if (beeping && !chip8::emulator::is_beeping()) {
-            beeping = false;
-            chip8::audio::end_beep();
         }
 
         // TODO: ensure glfw isn't blocking on this call and the
