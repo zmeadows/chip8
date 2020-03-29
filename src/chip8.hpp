@@ -4,7 +4,7 @@
 
 namespace chip8 {
 
-void init(const char* rom_path);
+void init(const char* rom_path, bool show_debug_panel);
 void terminate(void);
 void run(void);
 

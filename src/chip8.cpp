@@ -10,7 +10,7 @@
 
 namespace chip8 {
 
-void init(const char* rom_path)
+void init(const char* rom_path, bool)
 {
     srand((unsigned)time(NULL));
     chip8::glfw::init();
