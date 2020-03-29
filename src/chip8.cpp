@@ -20,6 +20,7 @@ void init(const char* rom_path, bool)
 
 void terminate(void)
 {
+    chip8::emulator::terminate();
     chip8::audio::terminate();
     chip8::glfw::terminate();
 }
