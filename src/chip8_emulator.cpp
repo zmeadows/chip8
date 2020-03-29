@@ -164,7 +164,7 @@ void reset(void)
     }
 }
 
-void emulate_0x0NNN_opcode_cycle(const uint16_t opcode, bool&)
+void emulate_0x0NNN_opcode_cycle(const uint16_t opcode)
 {
     assert((opcode & 0xF000) == 0x0000);
 
@@ -355,7 +355,7 @@ void emulate_cycle(void)
 
     switch (opcode & 0xF000) {
         case 0x0000: {
-            emulate_0x0NNN_opcode_cycle(opcode, bump_pc);
+            emulate_0x0NNN_opcode_cycle(opcode);
             break;
         }
         case 0x1000: { // 0x1NNN: jump to address NNN
