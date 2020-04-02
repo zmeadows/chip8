@@ -69,7 +69,7 @@ void start_beep(void)
     }
 }
 
-void end_beep(void)
+void stop_beep(void)
 {
     if (ma_device_stop(&device) != MA_SUCCESS) {
         printf("Failed to stop playback device.\n");
