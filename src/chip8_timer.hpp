@@ -12,12 +12,13 @@ using clock =
                      std::conditional<system_clock::period::den <= steady_clock::period::den,
                                       system_clock, steady_clock>::type>::type;
 
-struct cycle {
-    const duration<double> cycle_duration;
+class cycle {
+    const std::chrono::duration<double> cycle_duration;
     clock::time_point last_cycle_start;
-};
 
-struct cycle create_cycle(const double rate_Hz);
-bool is_ready(struct cycle& timer);
+public:
+    cycle(double rate_Hz);
+    void wait_until_ready(void);
+};
 
 } // namespace chip8::timer

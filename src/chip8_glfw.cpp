@@ -13,14 +13,20 @@ namespace chip8::glfw {
 
 namespace {
 
+std::atomic<bool> _shutdown_flag;
+
 GLFWwindow* emu_window = nullptr;
 GLFWwindow* debug_window = nullptr;
 
-constexpr auto grid_cell_pixels = 20;
+constexpr auto grid_cell_pixels = 10;
 constexpr auto screen_width_pixels = emulator::display_grid_width * grid_cell_pixels;
 constexpr auto screen_height_pixels = emulator::display_grid_height * grid_cell_pixels;
 
+const GLFWvidmode* glfw_video_mode = nullptr;
+
 bool input_buffer[emulator::user_input_key_count] = {false};
+
+void window_close_callback(GLFWwindow*) { _shutdown_flag.store(true); }
 
 void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int /* mods */)
 {
@@ -101,10 +107,12 @@ void init(void)
         exit(EXIT_FAILURE);
     }
 
+    _shutdown_flag.store(false);
+
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-    static char window_name_buffer[32];
-    sprintf_s(window_name_buffer, 32, "CHIP-8 (version %d.%d)", CHIP8_VERSION_MAJOR,
+    static char window_name_buffer[64];
+    sprintf_s(window_name_buffer, 64, "CHIP-8 (version %d.%d)", CHIP8_VERSION_MAJOR,
               CHIP8_VERSION_MINOR);
 
     emu_window = glfwCreateWindow(screen_width_pixels, screen_height_pixels,
@@ -135,6 +143,9 @@ void init(void)
     fprintf(stderr, "OpenGL version supported %s\n", version);
 
     glfwSetKeyCallback(emu_window, key_callback);
+    glfwSetWindowCloseCallback(emu_window, window_close_callback);
+
+    glfw_video_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 }
 
 void terminate(void)
@@ -150,14 +161,16 @@ void draw_screen(void)
     constexpr float grid_spacing_x = 2.f / gw;
     constexpr float grid_spacing_y = 2.f / gh;
 
-    auto gfx = emulator::screen_state();
+    static auto gfx_buffer = (bool*)malloc(sizeof(bool) * chip8::emulator::pixel_count);
+
+    emulator::copy_screen_state(gfx_buffer);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glColor3f(0.96484375, 0.62109375, 0.47265625);
 
     for (auto ix = 0; ix < emulator::display_grid_width; ix++) {
         for (auto iy = 0; iy < emulator::display_grid_height; iy++) {
-            if (gfx[iy * gw + ix]) {
+            if (gfx_buffer[iy * gw + ix]) {
                 const float x0 = -1.f + ix * grid_spacing_x;
                 const float y0 = 1.f - iy * grid_spacing_y;
 
@@ -187,5 +200,25 @@ bool user_requested_window_close(void)
 {
     return glfwWindowShouldClose(emu_window); // || glfwWindowShouldClose(debug_window);
 }
+
+uint64_t display_width_pixels(void)
+{
+    const int w = glfw_video_mode->width;
+    return w > 0 ? (uint64_t)w : 0;
+}
+
+uint64_t display_height_pixels(void)
+{
+    const int h = glfw_video_mode->height;
+    return h > 0 ? (uint64_t)h : 0;
+}
+
+uint64_t display_refresh_rate(void)
+{
+    const int r = glfw_video_mode->refreshRate;
+    return r > 0 ? (uint64_t)r : 0;
+}
+
+std::atomic<bool>& shutdown_flag(void) { return _shutdown_flag; }
 
 } // namespace chip8::glfw

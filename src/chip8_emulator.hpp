@@ -1,5 +1,7 @@
 #pragma once
 
+#include "chip8_flag.hpp"
+
 namespace chip8::emulator {
 
 constexpr auto memory_size_bytes = 4096;
@@ -12,19 +14,19 @@ constexpr auto max_stack_depth = 16;
 constexpr auto user_input_key_count = 16;
 constexpr auto register_count = 16;
 
+chip8::sync_flag& draw_flag(void);
+chip8::sync_flag& beep_flag(void);
+
 void init(const char* rom_path);
 void terminate(void);
 
 void emulate_cycle(void);
 
+void copy_screen_state(bool* buffer);
+
 void update_user_input(const bool* const new_input);
 
 void decrement_timers(void);
-bool is_beeping(void);
-
-const bool* const screen_state(void);
-bool screen_state_changed(void);
-void reset_draw_flag(void);
 
 template <typename Callable>
 void for_each_instr_in_history(Callable&& f);
