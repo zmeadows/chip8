@@ -15,17 +15,17 @@ namespace chip8 {
 
 namespace {
 
-constexpr auto shutdown_polling_delay = std::chrono::milliseconds(100);
+constexpr auto shutdown_polling_delay = std::chrono::milliseconds(750);
 
 void render_thread_func(void)
 {
     chip8::glfw::init();
 
-    // TODO: enable glfw vertical sync and set this timer to slightly below refresh rate
+    // TODO: enable glfw vertical sync and remove this timer
     const auto rr = chip8::glfw::display_refresh_rate();
     chip8::timer::cycle draw_cycle((double)rr);
 
-    const auto input_polling_delay = std::chrono::milliseconds(25);
+    const auto input_polling_delay = std::chrono::milliseconds(50);
 
     while (true) {
         if (chip8::glfw::shutdown_flag().load()) return;
@@ -81,9 +81,9 @@ chip8_poll_beep_stop:
 
 void emu_thread_func(void)
 {
-    chip8::timer::cycle emulation_cycle(600);
+    chip8::timer::cycle emulation_cycle(540);
     while (!chip8::glfw::shutdown_flag().load()) {
-        emulation_cycle.wait_until_ready();
+        emulation_cycle.spin_until_ready();
         chip8::emulator::emulate_cycle();
     }
 }
@@ -91,7 +91,6 @@ void emu_thread_func(void)
 void timer_thread_func(void)
 {
     chip8::timer::cycle timer_cycle(60);
-
     while (!chip8::glfw::shutdown_flag().load()) {
         timer_cycle.wait_until_ready();
         chip8::emulator::decrement_timers();
