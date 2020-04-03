@@ -112,8 +112,14 @@ void init(void)
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     static char window_name_buffer[64];
+
+#ifdef _MSC_VER
     sprintf_s(window_name_buffer, 64, "CHIP-8 (version %d.%d)", CHIP8_VERSION_MAJOR,
               CHIP8_VERSION_MINOR);
+#else
+    sprintf(window_name_buffer, "CHIP-8 (version %d.%d)", CHIP8_VERSION_MAJOR,
+            CHIP8_VERSION_MINOR);
+#endif
 
     emu_window = glfwCreateWindow(screen_width_pixels, screen_height_pixels,
                                   window_name_buffer, NULL, NULL);

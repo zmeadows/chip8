@@ -28,8 +28,13 @@ int main(int argc, char* argv[])
 
     const auto ROM_PATH_BUFFER_LENGTH = 4096;
     char rom_path[ROM_PATH_BUFFER_LENGTH];
+
+#ifdef _MSC_VER
     sprintf_s(rom_path, ROM_PATH_BUFFER_LENGTH, "%s/roms/%s", CHIP8_ASSETS_DIR,
               local_rom_path.c_str());
+#else
+    sprintf(rom_path, "%s/roms/%s", CHIP8_ASSETS_DIR, local_rom_path.c_str());
+#endif
 
     chip8::init(rom_path, opts.count("debug") > 0);
     chip8::run();

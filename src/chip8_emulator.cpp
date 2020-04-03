@@ -535,7 +535,13 @@ void emulate_cycle(void)
 void init(const char* rom_path)
 {
     FILE* rom_file = nullptr;
+    errno_t read_err = 0;
+
+#ifdef _MSC_VER
     errno_t read_err = fopen_s(&rom_file, rom_path, "rb");
+#else
+    rom_file = fopen(rom_path, "rb");
+#endif
 
     if (rom_file == nullptr || read_err != 0) {
         printf("failed to load ROM from file: %s\n", rom_path);
