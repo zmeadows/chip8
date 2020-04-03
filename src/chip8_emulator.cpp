@@ -6,7 +6,6 @@
 #include <cstring>
 
 #include <deque>
-#include <mutex>
 #include <optional>
 #include <string>
 
@@ -16,7 +15,7 @@ namespace chip8::emulator {
 
 namespace {
 
-constexpr bool CHIP8_DEBUG = true;
+constexpr bool CHIP8_DEBUG = false;
 
 chip8::sync_flag _draw_flag;
 chip8::sync_flag _beep_flag;
