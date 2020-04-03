@@ -12,4 +12,27 @@ void cycle::wait_until_ready(void)
     last_cycle_start = chip8::timer::clock::now();
 }
 
+void cycle::spin_until_ready(void)
+{
+    while (!is_ready()) {
+        continue;
+    }
+    return;
+}
+
+bool cycle::is_ready(void)
+{
+    const clock::time_point now = clock::now();
+
+    const auto elapsed = duration_cast<duration<double>>(now - last_cycle_start);
+
+    bool ready = false;
+    if (elapsed >= cycle_duration) {
+        ready = true;
+        last_cycle_start = now;
+    }
+
+    return ready;
+}
+
 } // namespace chip8::timer

@@ -18,7 +18,9 @@ class cycle {
 
 public:
     cycle(double rate_Hz);
+    bool is_ready(void);
     void wait_until_ready(void);
+    void spin_until_ready(void);
 };
 
 } // namespace chip8::timer
