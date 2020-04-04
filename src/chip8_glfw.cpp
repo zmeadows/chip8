@@ -14,15 +14,12 @@ namespace chip8::glfw {
 namespace {
 
 GLFWwindow* emu_window = nullptr;
-GLFWwindow* debug_window = nullptr;
 
 constexpr auto grid_cell_pixels = 10;
 constexpr auto screen_width_pixels = emulator::display_grid_width * grid_cell_pixels;
 constexpr auto screen_height_pixels = emulator::display_grid_height * grid_cell_pixels;
 
 const GLFWvidmode* glfw_video_mode = nullptr;
-
-bool input_buffer[emulator::user_input_key_count] = {false};
 
 void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int /* mods */)
 {
@@ -200,7 +197,7 @@ void poll_user_input(void) { glfwPollEvents(); }
 
 bool user_requested_window_close(void)
 {
-    return glfwWindowShouldClose(emu_window); // || glfwWindowShouldClose(debug_window);
+    return glfwWindowShouldClose(emu_window);
 }
 
 uint64_t display_width_pixels(void)
