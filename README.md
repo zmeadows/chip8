@@ -8,8 +8,9 @@ Follow the typical cmake build procedure:
 mkdir build
 cd build
 cmake ..
-make -j 4
+cmake --build . --config Release --parallel N
 ```
+where ```N``` is the number of build threads you wish to use.
 
 The following cross-platform libraries are used (and included):
 
