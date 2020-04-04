@@ -1,7 +1,6 @@
 #include "chip8.hpp"
 
 #include <cassert>
-#include <chrono>
 #include <cstdlib>
 #include <ctime>
 
