@@ -18,11 +18,11 @@ configure_file(./src/chip8_config.h.in chip8_config.h)
 add_definitions(-DCHIP8_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets/")
 
 # turn on most warnings and treat all warnings as errors
-# if (MSVC)
-#     target_compile_options(chip8 PUBLIC /W4 /WX)
-# else()
-#     target_compile_options(chip8 PUBLIC -Wall -Wextra -pedantic -Werror)
-# endif()
+if (MSVC)
+    target_compile_options(chip8 PUBLIC /W4 /WX)
+else()
+    target_compile_options(chip8 PUBLIC -Wall -Wextra -pedantic -Werror)
+endif()
 
 find_package(OpenGL REQUIRED)
 
