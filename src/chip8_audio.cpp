@@ -11,7 +11,7 @@ namespace {
 constexpr auto DEVICE_FORMAT = ma_format_f32;
 constexpr auto DEVICE_CHANNELS = 2;
 constexpr auto DEVICE_SAMPLE_RATE = 48000;
-constexpr auto SINE_WAVE_FREQUENCY = 220;
+constexpr auto SINE_WAVE_FREQUENCY = 250;
 
 ma_device device;
 ma_device_config device_config;
