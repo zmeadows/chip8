@@ -1,7 +1,5 @@
 #pragma once
 
-#include "chip8_flag.hpp"
-
 namespace chip8::emulator {
 
 constexpr auto memory_size_bytes = 4096;

@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "chip8_emulator.hpp"
+#include "chip8_prelude.hpp"
 
 namespace chip8::emulator {
 
@@ -38,14 +39,14 @@ void clear_screen(void) { memset(gfx, false, sizeof(bool) * emulator::pixel_coun
 
 class timer {
     static constexpr auto period = std::chrono::duration<double>(1.0 / 60.0);
-    chip8::timer::clock::time_point last_access_time = chip8::timer::clock::now();
+    chip8::clock::time_point last_access_time = chip8::clock::now();
     uint8_t value = 0;
 
 public:
     uint8_t read(void)
     {
         const auto orig_value = value;
-        const auto current_time = chip8::timer::clock::now();
+        const auto current_time = chip8::clock::now();
         const auto nticks_double = floor((current_time - last_access_time) / period);
         const uint8_t nticks = nticks_double <= 255 ? (uint8_t)nticks_double : 0;
 
@@ -59,7 +60,7 @@ public:
 
     uint8_t write(uint8_t new_val)
     {
-        last_access_time = chip8::timer::clock::now();
+        last_access_time = chip8::clock::now();
         const auto old_val = value;
         value = new_val;
         return old_val;

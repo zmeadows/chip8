@@ -8,7 +8,6 @@
 #include "chip8_audio.hpp"
 #include "chip8_emulator.hpp"
 #include "chip8_glfw.hpp"
-#include "chip8_timer.hpp"
 
 namespace chip8 {
 
