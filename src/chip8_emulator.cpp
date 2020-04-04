@@ -5,8 +5,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <optional>
-
 #include "chip8_emulator.hpp"
 #include "chip8_prelude.hpp"
 
@@ -31,7 +29,7 @@ uint16_t idx; // index register
 uint16_t pc;  // program counter
 uint16_t sp;  // stack "pointer"
 
-std::optional<uint16_t> register_awaiting_input;
+int16_t register_awaiting_input;
 
 uint64_t cycles_emulated;
 
@@ -150,7 +148,7 @@ void reset(void)
 
     memset(input, false, sizeof(bool) * emulator::user_input_key_count);
 
-    register_awaiting_input = {};
+    register_awaiting_input = -1;
 
     idx = 0;
     pc = 0x200;
@@ -330,7 +328,7 @@ void emulate_0xFXNN_opcode_cycle(const uint16_t opcode)
 
 void emulate_cycle(void)
 {
-    if (register_awaiting_input) return;
+    if (register_awaiting_input >= 0) return;
 
     auto read_mem_byte_at = [&](uint16_t addr) -> uint8_t {
         assert(addr < emulator::memory_size_bytes);
@@ -542,11 +540,11 @@ void update_user_input(uint8_t key_id, bool new_state)
 {
     const bool old_state = input[key_id];
 
-    if (register_awaiting_input && new_state && !old_state) {
-        const auto X = *register_awaiting_input;
+    if (register_awaiting_input >= 0 && new_state && !old_state) {
+        const auto X = register_awaiting_input;
         V[X] = key_id;
         record_instr("LD V%01X, 0x%01X", X, key_id);
-        register_awaiting_input = {};
+        register_awaiting_input = -1;
         pc += 2;
         cycles_emulated++;
     }
