@@ -46,3 +46,6 @@ Beep sound effect now included (thanks to miniaudio!).
 
 #### 0.3
 Multi-threaded support added for handling rendering, audio, timers and instruction cycles in four separate threads.
+
+#### 0.4
+Multi-threaded support removed (it wasn't necessary). Simplified main loop and user input handling.
