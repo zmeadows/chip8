@@ -14,21 +14,13 @@ constexpr auto max_stack_depth = 16;
 constexpr auto user_input_key_count = 16;
 constexpr auto register_count = 16;
 
-chip8::sync_flag& draw_flag(void);
-chip8::sync_flag& beep_flag(void);
-
 void init(const char* rom_path);
 void terminate(void);
 
 void emulate_cycle(void);
-
-void copy_screen_state(bool* buffer);
-
+const bool* const get_screen_state(void);
 void update_user_input(const bool* const new_input);
 
-void decrement_timers(void);
-
-template <typename Callable>
-void for_each_instr_in_history(Callable&& f);
+bool is_beeping(void);
 
 } // namespace chip8::emulator

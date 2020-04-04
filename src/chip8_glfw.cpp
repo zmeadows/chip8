@@ -13,8 +13,6 @@ namespace chip8::glfw {
 
 namespace {
 
-std::atomic<bool> _shutdown_flag;
-
 GLFWwindow* emu_window = nullptr;
 GLFWwindow* debug_window = nullptr;
 
@@ -25,8 +23,6 @@ constexpr auto screen_height_pixels = emulator::display_grid_height * grid_cell_
 const GLFWvidmode* glfw_video_mode = nullptr;
 
 bool input_buffer[emulator::user_input_key_count] = {false};
-
-void window_close_callback(GLFWwindow*) { _shutdown_flag.store(true); }
 
 void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int /* mods */)
 {
@@ -107,7 +103,12 @@ void init(void)
         exit(EXIT_FAILURE);
     }
 
-    _shutdown_flag.store(false);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
 
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
@@ -149,9 +150,11 @@ void init(void)
     fprintf(stderr, "OpenGL version supported %s\n", version);
 
     glfwSetKeyCallback(emu_window, key_callback);
-    glfwSetWindowCloseCallback(emu_window, window_close_callback);
+    // glfwSetWindowCloseCallback(emu_window, window_close_callback);
 
     glfw_video_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+    glfwSwapInterval(1); // enable vertical sync
 }
 
 void terminate(void)
@@ -167,9 +170,7 @@ void draw_screen(void)
     constexpr float grid_spacing_x = 2.f / gw;
     constexpr float grid_spacing_y = 2.f / gh;
 
-    static auto gfx_buffer = (bool*)malloc(sizeof(bool) * chip8::emulator::pixel_count);
-
-    emulator::copy_screen_state(gfx_buffer);
+    const bool* const gfx_buffer = emulator::get_screen_state();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glColor3f(0.96484375, 0.62109375, 0.47265625);
@@ -192,7 +193,7 @@ void draw_screen(void)
         }
     }
 
-    glFlush();
+    // glFlush();
     glfwSwapBuffers(emu_window);
 }
 
@@ -224,7 +225,5 @@ uint64_t display_refresh_rate(void)
     const int r = glfw_video_mode->refreshRate;
     return r > 0 ? (uint64_t)r : 0;
 }
-
-std::atomic<bool>& shutdown_flag(void) { return _shutdown_flag; }
 
 } // namespace chip8::glfw

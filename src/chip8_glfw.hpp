@@ -14,6 +14,6 @@ uint64_t display_width_pixels(void);
 uint64_t display_height_pixels(void);
 uint64_t display_refresh_rate(void);
 
-std::atomic<bool>& shutdown_flag(void);
+bool user_requested_window_close(void);
 
 } // namespace chip8::glfw

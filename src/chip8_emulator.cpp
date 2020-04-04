@@ -5,9 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <deque>
 #include <optional>
-#include <string>
 
 #include "chip8_emulator.hpp"
 
@@ -15,84 +13,61 @@ namespace chip8::emulator {
 
 namespace {
 
-constexpr bool CHIP8_DEBUG = false;
-
-chip8::sync_flag _draw_flag;
-chip8::sync_flag _beep_flag;
+constexpr bool CHIP8_DEBUG = true;
 
 // see https://en.wikipedia.org/wiki/CHIP-8#Virtual_machine_description
 uint8_t memory[memory_size_bytes];
 
-std::mutex gfx_mutex;
 bool gfx[pixel_count];
 
 uint16_t stack_trace[max_stack_depth];
 
 uint8_t V[register_count];
 
-std::mutex input_mutex;
 bool input[user_input_key_count];
 
 uint16_t idx; // index register
 uint16_t pc;  // program counter
 uint16_t sp;  // stack "pointer"
 
-std::mutex timer_mutex;
-uint8_t delay_timer;
-uint8_t sound_timer;
-
 std::optional<uint16_t> register_awaiting_input;
 
 uint64_t cycles_emulated;
 
-std::deque<std::string> instr_history;
-uint64_t instr_history_size;
+void clear_screen(void) { memset(gfx, false, sizeof(bool) * emulator::pixel_count); }
 
-void clear_screen(void)
-{
+class timer {
+    static constexpr auto period = std::chrono::duration<double>(1.0 / 60.0);
+    chip8::timer::clock::time_point last_access_time = chip8::timer::clock::now();
+    uint8_t value = 0;
+
+public:
+    uint8_t read(void)
     {
-        std::lock_guard<std::mutex> lock(gfx_mutex);
-        for (auto i = 0; i < emulator::pixel_count; i++) {
-            gfx[i] = false;
+        const auto orig_value = value;
+        const auto current_time = chip8::timer::clock::now();
+        const auto nticks_double = floor((current_time - last_access_time) / period);
+        const uint8_t nticks = nticks_double <= 255 ? (uint8_t)nticks_double : 0;
+
+        if (nticks > 0) {
+            last_access_time = current_time;
+            value = value > nticks ? value - nticks : 0;
         }
+
+        return value;
     }
 
-    _draw_flag.set();
-}
-
-uint8_t read_delay_timer(void)
-{
-    const std::lock_guard<std::mutex> lock(timer_mutex);
-    return delay_timer;
-}
-
-void set_delay_timer(uint8_t new_value)
-{
-    const std::lock_guard<std::mutex> lock(timer_mutex);
-    delay_timer = new_value;
-}
-
-void set_sound_timer(uint8_t new_value)
-{
-    const std::lock_guard<std::mutex> lock(timer_mutex);
-    uint8_t old_value = sound_timer;
-    sound_timer = new_value;
-
-    if (new_value > 0 && old_value == 0) {
-        _beep_flag.set();
+    uint8_t write(uint8_t new_val)
+    {
+        last_access_time = chip8::timer::clock::now();
+        const auto old_val = value;
+        value = new_val;
+        return old_val;
     }
-    else if (new_value == 0 && old_value > 0) {
-        _beep_flag.unset();
-    }
-}
+};
 
-template <typename Callable>
-void for_each_instr_in_history(Callable&& f)
-{
-    for (const auto& instr : instr_history) {
-        f(instr);
-    }
-}
+timer delay_timer;
+timer sound_timer;
 
 void debug_print(const char* fmt, ...)
 {
@@ -114,13 +89,7 @@ void record_instr(const char* format, Args... args)
         auto buf = (char*)malloc(size * sizeof(char));
         assert(buf != nullptr);
         snprintf(buf, size, format, args...);
-
-        instr_history.emplace_back(buf, buf + size - 1);
         free(buf);
-
-        if (instr_history.size() > instr_history_size) {
-            instr_history.pop_front();
-        }
     }
 }
 
@@ -178,30 +147,18 @@ void reset(void)
         V[i] = 0;
     }
 
-    {
-        const std::lock_guard<std::mutex> lock(input_mutex);
-        for (auto i = 0; i < emulator::user_input_key_count; i++) {
-            input[i] = false;
-        }
-        register_awaiting_input = {};
-    }
+    memset(input, false, sizeof(bool) * emulator::user_input_key_count);
+
+    register_awaiting_input = {};
 
     idx = 0;
     pc = 0x200;
     sp = 0;
 
-    (void)set_delay_timer(0);
-    (void)set_sound_timer(0);
+    delay_timer.write(0);
+    sound_timer.write(0);
 
     cycles_emulated = 0;
-    instr_history.clear();
-
-    if constexpr (CHIP8_DEBUG) {
-        instr_history_size = 2048;
-    }
-    else {
-        instr_history_size = 0;
-    }
 }
 
 void emulate_0x0NNN_opcode_cycle(const uint16_t opcode)
@@ -310,24 +267,23 @@ void emulate_0xFXNN_opcode_cycle(const uint16_t opcode)
 
     switch (opcode & 0x00FF) {
         case 0x0007: { // 0xFX07
-            Vx = read_delay_timer();
+            Vx = delay_timer.read();
             record_instr("LD V%01X, DT", X);
             break;
         }
         case 0x000A: { // 0xFX0A: Wait for a key press, and store the eventual key press in VX.
                        // This instruction doesn't actually finish until
                        // chip8::core::update_user_input is called after a new key press.
-            const std::lock_guard<std::mutex> lock(input_mutex);
             register_awaiting_input = X;
             return;
         }
         case 0x0015: { // 0xFX15
-            set_delay_timer(Vx);
+            delay_timer.write(Vx);
             record_instr("LD DT, V%01X", X);
             break;
         }
         case 0x0018: { // 0xFX18
-            set_sound_timer(Vx);
+            sound_timer.write(Vx);
             record_instr("LD ST, V%01X", X);
             break;
         }
@@ -373,10 +329,7 @@ void emulate_0xFXNN_opcode_cycle(const uint16_t opcode)
 
 void emulate_cycle(void)
 {
-    {
-        const std::lock_guard<std::mutex> lock(input_mutex);
-        if (register_awaiting_input) return;
-    }
+    if (register_awaiting_input) return;
 
     auto read_mem_byte_at = [&](uint16_t addr) -> uint8_t {
         assert(addr < emulator::memory_size_bytes);
@@ -470,30 +423,22 @@ void emulate_cycle(void)
             uint8_t& Vf = V[0xF];
             Vf = 0;
 
-            bool screen_updated = false;
+            for (auto i = 0; i < N; i++) {
+                uint8_t sprite_bits = memory[idx + i];
+                const uint8_t y = (Vy + i) % emulator::display_grid_height;
 
-            {
-                const std::lock_guard<std::mutex> lock(gfx_mutex);
-                for (auto i = 0; i < N; i++) {
-                    uint8_t sprite_bits = memory[idx + i];
-                    const uint8_t y = (Vy + i) % emulator::display_grid_height;
+                uint8_t j = 7;
+                while (sprite_bits != 0) {
+                    const uint8_t x = (Vx + j) % emulator::display_grid_width;
+                    bool& pixel_state = gfx[y * emulator::display_grid_width + x];
+                    const bool new_pixel_state = ((sprite_bits & 1) == 1) ^ pixel_state;
+                    if (pixel_state && !new_pixel_state) Vf = 1;
+                    pixel_state = new_pixel_state;
 
-                    uint8_t j = 7;
-                    while (sprite_bits != 0) {
-                        const uint8_t x = (Vx + j) % emulator::display_grid_width;
-                        bool& pixel_state = gfx[y * emulator::display_grid_width + x];
-                        const bool new_pixel_state = ((sprite_bits & 1) == 1) ^ pixel_state;
-                        if (pixel_state && !new_pixel_state) Vf = 1;
-                        if (pixel_state != new_pixel_state) screen_updated = true;
-                        pixel_state = new_pixel_state;
-
-                        j--;
-                        sprite_bits >>= 1;
-                    }
+                    j--;
+                    sprite_bits >>= 1;
                 }
             }
-
-            if (screen_updated) _draw_flag.set();
 
             record_instr("DRW V%01X, V%01X, 0x%01X", X, Y, N);
             break;
@@ -538,7 +483,7 @@ void init(const char* rom_path)
     errno_t read_err = 0;
 
 #ifdef _MSC_VER
-    errno_t read_err = fopen_s(&rom_file, rom_path, "rb");
+    read_err = fopen_s(&rom_file, rom_path, "rb");
 #else
     rom_file = fopen(rom_path, "rb");
 #endif
@@ -594,8 +539,6 @@ void terminate(void) { reset(); }
 
 void update_user_input(const bool* const new_input)
 {
-    const std::lock_guard<std::mutex> lock(input_mutex);
-
     if (register_awaiting_input) {
         for (uint8_t ikey = 0; ikey < emulator::user_input_key_count; ikey++) {
             if (!input[ikey] && new_input[ikey]) { // => key was pressed
@@ -610,31 +553,11 @@ void update_user_input(const bool* const new_input)
         }
     }
 
-    for (uint8_t ikey = 0; ikey < emulator::user_input_key_count; ikey++) {
-        input[ikey] = new_input[ikey];
-    }
+    memcpy(input, new_input, sizeof(bool) * emulator::user_input_key_count);
 }
 
-void decrement_timers(void)
-{
-    const std::lock_guard<std::mutex> lock(timer_mutex);
-    if (delay_timer > 0) delay_timer--;
-    if (sound_timer > 0) {
-        sound_timer--;
-        if (sound_timer == 0) {
-            assert(_beep_flag.check());
-            _beep_flag.unset();
-        }
-    }
-}
+bool is_beeping(void) { return sound_timer.read() > 0; }
 
-chip8::sync_flag& draw_flag(void) { return _draw_flag; }
-chip8::sync_flag& beep_flag(void) { return _beep_flag; }
-
-void copy_screen_state(bool* buffer)
-{
-    const std::lock_guard<std::mutex> lock(gfx_mutex);
-    memcpy(buffer, gfx, sizeof(bool) * pixel_count);
-}
+const bool* const get_screen_state(void) { return gfx; }
 
 } // namespace chip8::emulator
