@@ -89,8 +89,7 @@ void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int 
     }
 
     if (key_id != -1) {
-        // printf("key %x updated with state %d\n", key_id, state);
-        input_buffer[key_id] = state;
+        chip8::emulator::update_user_input(key_id, state);
     }
 }
 
@@ -197,11 +196,7 @@ void draw_screen(void)
     glfwSwapBuffers(emu_window);
 }
 
-void poll_user_input(void)
-{
-    glfwPollEvents();
-    emulator::update_user_input(input_buffer);
-}
+void poll_user_input(void) { glfwPollEvents(); }
 
 bool user_requested_window_close(void)
 {

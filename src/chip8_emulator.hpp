@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace chip8::emulator {
 
 constexpr auto memory_size_bytes = 4096;
@@ -17,7 +19,7 @@ void terminate(void);
 
 void emulate_cycle(void);
 const bool* const get_screen_state(void);
-void update_user_input(const bool* const new_input);
+void update_user_input(uint8_t key_id, bool new_state);
 
 bool is_beeping(void);
 

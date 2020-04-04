@@ -538,23 +538,20 @@ void init(const char* rom_path)
 
 void terminate(void) { reset(); }
 
-void update_user_input(const bool* const new_input)
+void update_user_input(uint8_t key_id, bool new_state)
 {
-    if (register_awaiting_input) {
-        for (uint8_t ikey = 0; ikey < emulator::user_input_key_count; ikey++) {
-            if (!input[ikey] && new_input[ikey]) { // => key was pressed
-                const auto X = *register_awaiting_input;
-                V[X] = ikey;
-                record_instr("LD V%01X, 0x%01X", X, ikey);
-                register_awaiting_input = {};
-                pc += 2;
-                cycles_emulated++;
-                break;
-            }
-        }
+    const bool old_state = input[key_id];
+
+    if (register_awaiting_input && new_state && !old_state) {
+        const auto X = *register_awaiting_input;
+        V[X] = key_id;
+        record_instr("LD V%01X, 0x%01X", X, key_id);
+        register_awaiting_input = {};
+        pc += 2;
+        cycles_emulated++;
     }
 
-    memcpy(input, new_input, sizeof(bool) * emulator::user_input_key_count);
+    input[key_id] = new_state;
 }
 
 bool is_beeping(void) { return sound_timer.read() > 0; }
