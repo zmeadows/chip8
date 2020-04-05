@@ -8,18 +8,18 @@
 
 #include "chip8_config.h"
 #include "chip8_emulator.hpp"
+#include "chip8_prelude.hpp"
 
 namespace chip8::glfw {
 
 namespace {
 
 GLFWwindow* emu_window = nullptr;
+const GLFWvidmode* glfw_video_mode = nullptr;
 
 constexpr auto grid_cell_pixels = 10;
-constexpr auto screen_width_pixels = emulator::display_grid_width * grid_cell_pixels;
-constexpr auto screen_height_pixels = emulator::display_grid_height * grid_cell_pixels;
-
-const GLFWvidmode* glfw_video_mode = nullptr;
+constexpr auto screen_width_pixels = chip8::display_grid_width * grid_cell_pixels;
+constexpr auto screen_height_pixels = chip8::display_grid_height * grid_cell_pixels;
 
 void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int /* mods */)
 {
@@ -146,7 +146,6 @@ void init(void)
     fprintf(stderr, "OpenGL version supported %s\n", version);
 
     glfwSetKeyCallback(emu_window, key_callback);
-    // glfwSetWindowCloseCallback(emu_window, window_close_callback);
 
     glfw_video_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
 
@@ -161,8 +160,8 @@ void terminate(void)
 
 void draw_screen(void)
 {
-    constexpr auto gw = emulator::display_grid_width;
-    constexpr auto gh = emulator::display_grid_height;
+    constexpr auto gw = chip8::display_grid_width;
+    constexpr auto gh = chip8::display_grid_height;
     constexpr float grid_spacing_x = 2.f / gw;
     constexpr float grid_spacing_y = 2.f / gh;
 
@@ -171,8 +170,8 @@ void draw_screen(void)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glColor3f(0.96484375, 0.62109375, 0.47265625);
 
-    for (auto ix = 0; ix < emulator::display_grid_width; ix++) {
-        for (auto iy = 0; iy < emulator::display_grid_height; iy++) {
+    for (auto ix = 0; ix < chip8::display_grid_width; ix++) {
+        for (auto iy = 0; iy < chip8::display_grid_height; iy++) {
             if (gfx_buffer[iy * gw + ix]) {
                 const float x0 = -1.f + ix * grid_spacing_x;
                 const float y0 = 1.f - iy * grid_spacing_y;
@@ -189,16 +188,12 @@ void draw_screen(void)
         }
     }
 
-    // glFlush();
     glfwSwapBuffers(emu_window);
 }
 
 void poll_user_input(void) { glfwPollEvents(); }
 
-bool user_requested_window_close(void)
-{
-    return glfwWindowShouldClose(emu_window);
-}
+bool user_requested_window_close(void) { return glfwWindowShouldClose(emu_window); }
 
 uint64_t display_width_pixels(void)
 {
