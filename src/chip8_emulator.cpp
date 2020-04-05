@@ -6,6 +6,8 @@
 #include <cstring>
 
 #include "chip8_emulator.hpp"
+
+#include "chip8_disassembler.hpp"
 #include "chip8_prelude.hpp"
 
 namespace chip8::emulator {
@@ -13,27 +15,6 @@ namespace chip8::emulator {
 namespace {
 
 constexpr bool CHIP8_DEBUG = true;
-
-// see https://en.wikipedia.org/wiki/CHIP-8#Virtual_machine_description
-uint8_t memory[memory_size_bytes];
-
-bool gfx[pixel_count];
-
-uint16_t stack_trace[max_stack_depth];
-
-uint8_t V[register_count];
-
-bool input[user_input_key_count];
-
-uint16_t idx; // index register
-uint16_t pc;  // program counter
-uint16_t sp;  // stack "pointer"
-
-int16_t register_awaiting_input;
-
-uint64_t cycles_emulated;
-
-void clear_screen(void) { memset(gfx, false, sizeof(bool) * emulator::pixel_count); }
 
 class timer {
     static constexpr auto period = std::chrono::duration<double>(1.0 / 60.0);
@@ -65,8 +46,25 @@ public:
     }
 };
 
+// see https://en.wikipedia.org/wiki/CHIP-8#Virtual_machine_description
+uint8_t memory[memory_size_bytes];
+bool gfx[pixel_count];
+uint16_t stack_trace[max_stack_depth];
+uint8_t V[register_count];
+bool input[user_input_key_count];
 timer delay_timer;
 timer sound_timer;
+int16_t register_awaiting_input;
+uint16_t idx; // index register
+uint16_t pc;  // program counter
+uint16_t sp;  // stack "pointer"
+uint64_t cycles_emulated;
+
+uint8_t read_mem_byte_at(uint16_t addr)
+{
+    assert(addr < chip8::memory_size_bytes);
+    return memory[addr];
+};
 
 void debug_print(const char* fmt, ...)
 {
@@ -77,35 +75,6 @@ void debug_print(const char* fmt, ...)
         va_end(argptr);
     }
 }
-
-template <typename... Args>
-void record_instr(const char* format, Args... args)
-{
-    if constexpr (CHIP8_DEBUG) {
-        size_t size = snprintf(nullptr, 0, format, args...) + 1; // Extra space for '\0'
-        assert(size > 0);
-
-        auto buf = (char*)malloc(size * sizeof(char));
-        assert(buf != nullptr);
-        snprintf(buf, size, format, args...);
-        free(buf);
-    }
-}
-
-template <uint16_t index>
-constexpr uint16_t ith_hex_digit(uint16_t opcode)
-{
-    static_assert(index >= 0 && index <= 3);
-    constexpr uint16_t offset = 12 - index * 4;
-    constexpr uint16_t mask = 0x000F << offset;
-    return (mask & opcode) >> offset;
-}
-
-inline void panic_opcode(const char* description, const uint16_t opcode)
-{
-    printf("%s CHIP8 op-code encountered: 0x%04X\n", description, opcode);
-    exit(1);
-};
 
 void reset(void)
 {
@@ -128,25 +97,12 @@ void reset(void)
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
 
-    for (auto i = 0; i < 80; i++) {
-        memory[i] = chip8_fontset[i];
-    }
-
-    for (auto i = 80; i < emulator::memory_size_bytes; i++) {
-        memory[i] = 0;
-    }
-
-    clear_screen();
-
-    for (auto i = 0; i < emulator::max_stack_depth; i++) {
-        stack_trace[i] = 0;
-    }
-
-    for (auto i = 0; i < emulator::register_count; i++) {
-        V[i] = 0;
-    }
-
-    memset(input, false, sizeof(bool) * emulator::user_input_key_count);
+    memcpy(memory, chip8_fontset, sizeof(uint8_t) * 80);
+    memset(memory + 80, 0, sizeof(uint8_t) * (chip8::memory_size_bytes - 80));
+    memset(gfx, false, sizeof(bool) * chip8::pixel_count);
+    memset(stack_trace, 0, sizeof(uint16_t) * chip8::max_stack_depth);
+    memset(V, 0, sizeof(uint8_t) * chip8::register_count);
+    memset(input, false, sizeof(bool) * chip8::user_input_key_count);
 
     register_awaiting_input = -1;
 
@@ -166,8 +122,7 @@ void emulate_0x0NNN_opcode_cycle(const uint16_t opcode)
 
     switch (opcode) {
         case 0x00E0: { // CLS: clear screen
-            clear_screen();
-            record_instr("CLS");
+            memset(gfx, false, sizeof(bool) * chip8::pixel_count);
             break;
         }
 
@@ -175,7 +130,6 @@ void emulate_0x0NNN_opcode_cycle(const uint16_t opcode)
             assert(sp > 0);
             sp--;
             pc = stack_trace[sp];
-            record_instr("RET");
             break;
         }
 
@@ -198,56 +152,47 @@ void emulate_0x8XYN_opcode_cycle(const uint16_t opcode)
     switch (opcode & 0x000F) {
         case 0x0000: { // 0x8XY0
             Vx = Vy;
-            record_instr("LD V%01X, V%01X", X, Y);
             break;
         }
         case 0x0001: { // 0x8XY1
             Vx |= Vy;
-            record_instr("OR V%01X, V%01X", X, Y);
             break;
         }
         case 0x0002: { // 0x8XY2
             Vx &= Vy;
-            record_instr("AND V%01X, V%01X", X, Y);
             break;
         }
         case 0x0003: { // 0x8XY3
             Vx ^= Vy;
-            record_instr("XOR V%01X, V%01X", X, Y);
             break;
         }
         // @DEBUG
         case 0x0004: { // 0x8XY4: add VY to VX and set carry bit if needed
             Vf = Vy > 0xFF - Vx ? 1 : 0;
             Vx += Vy;
-            record_instr("ADD V%01X, V%01X", X, Y);
             break;
         }
         // @DEBUG
         case 0x0005: { // 0x8XY5: subtract VY from VX and set carry bit to "NOT borrow"
             Vf = Vx > Vy ? 1 : 0;
             Vx -= Vy;
-            record_instr("SUB V%01X, V%01X", X, Y);
             break;
         }
         case 0x0006: { // 0x8XY6: right bitshift VX by 1 (i.e. divide by 2) and set carry bit
                        // to one if VX is odd, otherwise zero
             Vf = Vx & 1;
             Vx /= 2;
-            record_instr("SHR V%01X", X);
             break;
         }
         case 0x0007: { // 0x8XY7: set VX = VY - VX and set carry flag to "NOT borrow"
             Vf = Vy > Vx ? 1 : 0;
             Vx = Vy - Vx;
-            record_instr("SUBN V%01X, V%01X", X, Y);
             break;
         }
         case 0x000E: { // 0x8XYE: left bitshift VX by 1 (i.e. multiply by 2) and set carry bit
                        // to one if MSB of VX is set, otherwise zero
             Vf = (Vx >= 128) ? 1 : 0;
             Vx *= 2;
-            record_instr("SHL V%01X", X);
             break;
         }
         default: {
@@ -267,7 +212,6 @@ void emulate_0xFXNN_opcode_cycle(const uint16_t opcode)
     switch (opcode & 0x00FF) {
         case 0x0007: { // 0xFX07
             Vx = delay_timer.read();
-            record_instr("LD V%01X, DT", X);
             break;
         }
         case 0x000A: { // 0xFX0A: Wait for a key press, and store the eventual key press in VX.
@@ -278,44 +222,37 @@ void emulate_0xFXNN_opcode_cycle(const uint16_t opcode)
         }
         case 0x0015: { // 0xFX15
             delay_timer.write(Vx);
-            record_instr("LD DT, V%01X", X);
             break;
         }
         case 0x0018: { // 0xFX18
             sound_timer.write(Vx);
-            record_instr("LD ST, V%01X", X);
             break;
         }
         case 0x001E: { // 0xFX1E
             idx += Vx;
-            record_instr("ADD I, V%01X", X);
             break;
         }
         case 0x0029: { // 0xFX29: set index register to point to fontset location of VX
             idx = 5 * Vx;
             assert(idx < 80 && idx >= 0);
-            record_instr("LD F, V%01X", X);
             break;
         }
         case 0x0033: { // 0xFX33: store BCD representation of VX at memory location of I
             memory[I] = (Vx / 100) % 10;
             memory[I + 1] = (Vx / 10) % 10;
             memory[I + 2] = Vx % 10;
-            record_instr("LD B, V%01X", X);
             break;
         }
         case 0x0055: { // 0xFX55
             for (uint16_t i = 0; i <= X; i++) {
                 memory[I + i] = V[i];
             }
-            record_instr("LD [I], V%01X", X);
             break;
         }
         case 0x0065: { // 0xFX65
             for (uint16_t i = 0; i <= X; i++) {
                 V[i] = memory[I + i];
             }
-            record_instr("LD V%01X, [I]", X);
             break;
         }
         default: {
@@ -329,11 +266,6 @@ void emulate_0xFXNN_opcode_cycle(const uint16_t opcode)
 void emulate_cycle(void)
 {
     if (register_awaiting_input >= 0) return;
-
-    auto read_mem_byte_at = [&](uint16_t addr) -> uint8_t {
-        assert(addr < emulator::memory_size_bytes);
-        return memory[addr];
-    };
 
     const uint16_t opcode = (read_mem_byte_at(pc) << 8) | read_mem_byte_at(pc + 1);
 
@@ -354,7 +286,6 @@ void emulate_cycle(void)
         case 0x1000: { // 0x1NNN: jump to address NNN
             pc = NNN;
             bump_pc = false;
-            record_instr("JP 0x%04X", NNN);
             break;
         }
         case 0x2000: { // 0x2NNN: call subroutine at address NNN
@@ -362,32 +293,26 @@ void emulate_cycle(void)
             sp++;
             pc = NNN;
             bump_pc = false;
-            record_instr("CALL 0x%03X", NNN);
             break;
         }
         case 0x3000: { // 0x3XKK: skip next instruction if VX == kk
             if (Vx == KK) pc += 2;
-            record_instr("SE V%01x 0x%02X", X, KK);
             break;
         }
         case 0x4000: { // 0x4XKK: skip next instruction if VX != kk
             if (Vx != KK) pc += 2;
-            record_instr("SNE V%01X, 0x%02X", X, KK);
             break;
         }
         case 0x5000: { // 0x5XY0: skip next instruction if VX == VY
             if (Vx == Vy) pc += 2;
-            record_instr("SE V%01X, V%01X", X, Y);
             break;
         }
         case 0x6000: { // 0x6XKK: Set VX register to KK
             Vx = KK;
-            record_instr("LD V%01X, 0x%02X", X, KK);
             break;
         }
         case 0x7000: { // 0x7XKK: Add KK to VX (ignore carry)
             Vx += KK;
-            record_instr("ADD V%01X, 0x%02X", X, KK);
             break;
         }
         case 0x8000: {
@@ -396,24 +321,20 @@ void emulate_cycle(void)
         }
         case 0x9000: { // 0x9XY0: skip next instruction if VX != VY
             if (Vx != Vy) pc += 2;
-            record_instr("SNE V%01X, V%01X", X, Y);
             break;
         }
         case 0xA000: { // 0xANNN: set index register to NNN
             idx = NNN;
-            record_instr("LD I, 0x%03X", NNN);
             break;
         }
         case 0xB000: { // 0xBNNN: jump to location V0 + NNN
             pc = V[0] + NNN;
             bump_pc = false;
-            record_instr("JP V0, 0x%03X", NNN);
             break;
         }
         case 0xC000: { // 0xCXKK: generate a random number in the range [0,255], then AND it
                        // with KK and store in VX
             Vx = (rand() & 255) & KK; // (x % N) == (x & (n-1)) if n is a power of two
-            record_instr("RND V%01X, 0x%02X", X, KK);
             break;
         }
         case 0xD000: { // 0xDXYN: draw sprite to gfx buffer at coordinates (VX, VY).
@@ -424,12 +345,12 @@ void emulate_cycle(void)
 
             for (auto i = 0; i < N; i++) {
                 uint8_t sprite_bits = memory[idx + i];
-                const uint8_t y = (Vy + i) % emulator::display_grid_height;
+                const uint8_t y = (Vy + i) % chip8::display_grid_height;
 
                 uint8_t j = 7;
                 while (sprite_bits != 0) {
-                    const uint8_t x = (Vx + j) % emulator::display_grid_width;
-                    bool& pixel_state = gfx[y * emulator::display_grid_width + x];
+                    const uint8_t x = (Vx + j) % chip8::display_grid_width;
+                    bool& pixel_state = gfx[y * chip8::display_grid_width + x];
                     const bool new_pixel_state = ((sprite_bits & 1) == 1) ^ pixel_state;
                     if (pixel_state && !new_pixel_state) Vf = 1;
                     pixel_state = new_pixel_state;
@@ -439,22 +360,19 @@ void emulate_cycle(void)
                 }
             }
 
-            record_instr("DRW V%01X, V%01X, 0x%01X", X, Y, N);
             break;
         }
         case 0xE000: {
-            assert(Vx < emulator::user_input_key_count);
+            assert(Vx < chip8::user_input_key_count);
 
             switch (opcode & 0x00FF) {
                 case 0x009E: // 0xEX9E: skip next instruction if VXth key is pressed
-                    assert(Vx < emulator::user_input_key_count);
+                    assert(Vx < chip8::user_input_key_count);
                     if (input[Vx]) pc += 2;
-                    record_instr("SKP V%01X", X);
                     break;
                 case 0x00A1: // 0xEXA1: skip next instruction if VXth key is NOT pressed
-                    assert(Vx < emulator::user_input_key_count);
+                    assert(Vx < chip8::user_input_key_count);
                     if (!input[Vx]) pc += 2;
-                    record_instr("SKNP V%01X", X);
                     break;
                 default:
                     panic_opcode("unknown", opcode);
@@ -503,7 +421,7 @@ void init(const char* rom_path)
 
     const auto file_size_bytes = static_cast<uint64_t>(ftell_ret);
 
-    if (file_size_bytes > emulator::allowed_rom_memory) {
+    if (file_size_bytes > chip8::allowed_rom_memory) {
         printf("requested ROM file (%s) doesn't fit in CHIP8 memory!\n", rom_path);
         exit(EXIT_FAILURE);
     }
@@ -525,25 +443,28 @@ void init(const char* rom_path)
     reset();
 
     for (uint64_t i = 0; i < file_size_bytes; i++) {
-        memory[emulator::rom_memory_offset + i] = buffer[i];
+        memory[chip8::rom_memory_offset + i] = buffer[i];
     }
 
     printf("successfully loaded %d bytes from %s into memory.\n\n", (int)file_size_bytes,
            rom_path);
 
     free(buffer);
+
+    chip8::disassembler::init(memory + chip8::rom_memory_offset, &pc);
 }
 
-void terminate(void) { reset(); }
+void terminate(void)
+{
+    reset();
+    chip8::disassembler::terminate();
+}
 
 void update_user_input(uint8_t key_id, bool new_state)
 {
-    const bool old_state = input[key_id];
-
-    if (register_awaiting_input >= 0 && new_state && !old_state) {
+    if (register_awaiting_input >= 0 && new_state && !input[key_id]) {
         const auto X = register_awaiting_input;
         V[X] = key_id;
-        record_instr("LD V%01X, 0x%01X", X, key_id);
         register_awaiting_input = -1;
         pc += 2;
         cycles_emulated++;

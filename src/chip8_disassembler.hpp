@@ -1,11 +1,14 @@
 #pragma once
 
+#include <cstdint>
+
 namespace chip8::disassembler {
 
-// constexpr auto maximum_line_length = 32;
-//
-// constexpr auto max_prog_instr_count =
-//
-//     std::string disassemble_opcode(uint16_t opcode);
+void init(const uint8_t* const rom_memory, const uint16_t* program_counter);
+
+void terminate(void);
+
+template <typename Callable>
+void iterate_mru_window(Callable&& f);
 
 } // namespace chip8::disassembler
