@@ -11105,6 +11105,8 @@ static ma_result ma_context_create_IMMDeviceEnumerator__wasapi(ma_context* pCont
 
 static LPWSTR ma_context_get_default_device_id_from_IMMDeviceEnumerator__wasapi(ma_context* pContext, ma_IMMDeviceEnumerator* pDeviceEnumerator, ma_device_type deviceType)
 {
+    (void) pContext;
+
     HRESULT hr;
     ma_IMMDevice* pMMDefaultDevice = NULL;
     LPWSTR pDefaultDeviceID = NULL;
