@@ -12110,10 +12110,9 @@ static ma_result ma_device_init__wasapi(ma_context* pContext, const ma_device_co
 {
     ma_result result = MA_SUCCESS;
 
-    (void)pContext;
-
     MA_ASSERT(pContext != NULL);
     MA_ASSERT(pDevice != NULL);
+    (void)pContext;
 
     MA_ZERO_OBJECT(&pDevice->wasapi);
     pDevice->wasapi.originalPeriodSizeInFrames       = pConfig->periodSizeInFrames;
