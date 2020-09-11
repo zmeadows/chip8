@@ -56,7 +56,10 @@ using namespace std::chrono;
 #define CHIP8_VERSION_MINOR 0
 #endif
 
-// Defer macro by Arthur O'Dwyer: https://quuxplusone.github.io/blog/2018/08/11/the-auto-macro/
+namespace {
+
+// Defer macro by Arthur O'Dwyer:
+// https://quuxplusone.github.io/blog/2018/08/11/the-auto-macro/
 template <class L>
 class AtScopeExit {
     L& m_lambda;
@@ -78,19 +81,21 @@ public:
 
 #define Defer(...) Auto_INTERNAL2(__COUNTER__, __VA_ARGS__)
 
+} // namespace
+
 namespace chip8 {
 
-constexpr auto memory_size_bytes = 4096;
-constexpr auto rom_memory_offset = 0x200;
-constexpr auto allowed_rom_memory = memory_size_bytes - rom_memory_offset;
-constexpr auto maximum_rom_instruction_count = allowed_rom_memory / 2;
-constexpr auto display_grid_width = 64;
-constexpr auto display_grid_height = 32;
-constexpr auto pixel_count = display_grid_width * display_grid_height;
-constexpr auto max_stack_depth = 16;
-constexpr auto user_input_key_count = 16;
-constexpr auto register_count = 16;
-constexpr auto instructions_per_frame = 5;
+constexpr auto MEMORY_SIZE_BYTES = 4096;
+constexpr auto ROM_MEMORY_OFFSET = 0x200;
+constexpr auto ALLOWED_ROM_MEMORY = MEMORY_SIZE_BYTES - ROM_MEMORY_OFFSET;
+constexpr auto MAXIMUM_ROM_INSTRUCTION_COUNT = ALLOWED_ROM_MEMORY / 2;
+constexpr auto DISPLAY_GRID_WIDTH = 64;
+constexpr auto DISPLAY_GRID_HEIGHT = 32;
+constexpr auto PIXEL_COUNT = DISPLAY_GRID_WIDTH * DISPLAY_GRID_HEIGHT;
+constexpr auto MAX_STACK_DEPTH = 16;
+constexpr auto USER_INPUT_KEY_COUNT = 16;
+constexpr auto REGISTER_COUNT = 16;
+constexpr auto INSTRUCTIONS_PER_FRAME = 5;
 
 // typedef for the highest resolution steady clock
 using clock =
@@ -108,9 +113,13 @@ struct AudioContext {
     ma_device_config device_config;
     ma_waveform sine_wave;
     ma_waveform_config sine_wave_config;
+    bool init_success = false;
 
     static std::unique_ptr<AudioContext> create();
-    ~AudioContext() { ma_device_uninit(&this->device); }
+    ~AudioContext()
+    {
+        if (init_success) ma_device_uninit(&this->device);
+    }
 
 private:
     AudioContext() = default;
@@ -118,7 +127,7 @@ private:
 
 std::unique_ptr<AudioContext> AudioContext::create()
 {
-    auto* ctx = new AudioContext();
+    auto ctx = std::unique_ptr<AudioContext>(new AudioContext());
 
     ctx->sine_wave_config =
         ma_waveform_config_init(DEVICE_FORMAT, DEVICE_CHANNELS, DEVICE_SAMPLE_RATE,
@@ -149,9 +158,11 @@ std::unique_ptr<AudioContext> AudioContext::create()
         return nullptr;
     }
 
+    ctx->init_success = true;
+
     fprintf(stderr, "Audio Device Name: %s\n", ctx->device.playback.name);
 
-    return std::unique_ptr<AudioContext>(ctx);
+    return ctx;
 }
 
 void start_beep(AudioContext* audio)
@@ -208,11 +219,11 @@ uint8_t Timer::read(void)
 }
 
 struct Emulator {
-    uint8_t memory[memory_size_bytes];
-    bool gfx[pixel_count];
-    uint16_t stack_trace[max_stack_depth];
-    uint8_t V[register_count];
-    bool input[user_input_key_count];
+    uint8_t memory[MEMORY_SIZE_BYTES];
+    bool gfx[PIXEL_COUNT];
+    uint16_t stack_trace[MAX_STACK_DEPTH];
+    uint8_t V[REGISTER_COUNT];
+    bool input[USER_INPUT_KEY_COUNT];
     Timer delay_timer;
     Timer sound_timer;
     int16_t register_awaiting_input;
@@ -254,17 +265,17 @@ void reset_emulator(Emulator* emu)
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
 
-    memset(emu->memory, 0, sizeof(uint8_t) * chip8::memory_size_bytes);
+    memset(emu->memory, 0, sizeof(uint8_t) * chip8::MEMORY_SIZE_BYTES);
     memcpy(emu->memory, chip8_fontset, sizeof(uint8_t) * 80);
-    memset(emu->gfx, false, sizeof(bool) * chip8::pixel_count);
-    memset(emu->stack_trace, 0, sizeof(uint16_t) * chip8::max_stack_depth);
-    memset(emu->V, 0, sizeof(uint8_t) * chip8::register_count);
-    memset(emu->input, false, sizeof(bool) * chip8::user_input_key_count);
+    memset(emu->gfx, false, sizeof(bool) * chip8::PIXEL_COUNT);
+    memset(emu->stack_trace, 0, sizeof(uint16_t) * chip8::MAX_STACK_DEPTH);
+    memset(emu->V, 0, sizeof(uint8_t) * chip8::REGISTER_COUNT);
+    memset(emu->input, false, sizeof(bool) * chip8::USER_INPUT_KEY_COUNT);
 
     emu->register_awaiting_input = -1;
 
     emu->idx = 0;
-    emu->pc = chip8::rom_memory_offset;
+    emu->pc = chip8::ROM_MEMORY_OFFSET;
     emu->sp = 0;
 
     emu->delay_timer.write(0);
@@ -301,7 +312,7 @@ std::unique_ptr<Emulator> Emulator::create(const char* rom_path)
     }
 
     const auto file_size_bytes = static_cast<uint64_t>(ftell_ret);
-    if (file_size_bytes > chip8::allowed_rom_memory) {
+    if (file_size_bytes > chip8::ALLOWED_ROM_MEMORY) {
         fprintf(stderr, "Requested ROM file (%s) doesn't fit in CHIP8 memory!\n", rom_path);
         return nullptr;
     }
@@ -322,7 +333,7 @@ std::unique_ptr<Emulator> Emulator::create(const char* rom_path)
     reset_emulator(emu.get());
 
     for (uint64_t i = 0; i < file_size_bytes; i++) {
-        emu->memory[chip8::rom_memory_offset + i] = buffer[i];
+        emu->memory[chip8::ROM_MEMORY_OFFSET + i] = buffer[i];
     }
 
     fprintf(stderr, "Successfully loaded %d bytes from %s into memory.\n\n",
@@ -351,7 +362,7 @@ void emulate_0x0NNN_opcode_cycle(Emulator* emu, const uint16_t opcode)
 
     switch (opcode) {
         case 0x00E0: { // CLS: clear screen
-            memset(emu->gfx, false, sizeof(bool) * chip8::pixel_count);
+            memset(emu->gfx, false, sizeof(bool) * chip8::PIXEL_COUNT);
             break;
         }
 
@@ -495,7 +506,7 @@ void emulate_cycle(Emulator* emu)
     if (emu->register_awaiting_input >= 0) return;
 
     auto read_mem_byte_at = [emu](uint16_t addr) -> uint16_t {
-        assert(addr < chip8::memory_size_bytes);
+        assert(addr < chip8::MEMORY_SIZE_BYTES);
         return emu->memory[addr];
     };
 
@@ -577,12 +588,12 @@ void emulate_cycle(Emulator* emu)
 
             for (auto i = 0; i < N; i++) {
                 uint8_t sprite_bits = emu->memory[emu->idx + i];
-                const uint8_t y = (Vy + i) % chip8::display_grid_height;
+                const uint8_t y = (Vy + i) % chip8::DISPLAY_GRID_HEIGHT;
 
                 uint8_t j = 7;
                 while (sprite_bits != 0) {
-                    const uint8_t x = (Vx + j) % chip8::display_grid_width;
-                    bool& pixel_state = emu->gfx[y * chip8::display_grid_width + x];
+                    const uint8_t x = (Vx + j) % chip8::DISPLAY_GRID_WIDTH;
+                    bool& pixel_state = emu->gfx[y * chip8::DISPLAY_GRID_WIDTH + x];
                     const bool new_pixel_state = ((sprite_bits & 1) == 1) ^ pixel_state;
                     if (pixel_state && !new_pixel_state) Vf = 1;
                     pixel_state = new_pixel_state;
@@ -595,15 +606,15 @@ void emulate_cycle(Emulator* emu)
             break;
         }
         case 0xE000: {
-            assert(Vx < chip8::user_input_key_count);
+            assert(Vx < chip8::USER_INPUT_KEY_COUNT);
 
             switch (opcode & 0x00FF) {
                 case 0x009E: // 0xEX9E: skip next instruction if VXth key is pressed
-                    assert(Vx < chip8::user_input_key_count);
+                    assert(Vx < chip8::USER_INPUT_KEY_COUNT);
                     if (emu->input[Vx]) emu->pc += 2;
                     break;
                 case 0x00A1: // 0xEXA1: skip next instruction if VXth key is NOT pressed
-                    assert(Vx < chip8::user_input_key_count);
+                    assert(Vx < chip8::USER_INPUT_KEY_COUNT);
                     if (!emu->input[Vx]) emu->pc += 2;
                     break;
                 default:
@@ -626,7 +637,7 @@ void emulate_cycle(Emulator* emu)
     emu->cycles_emulated++;
 }
 
-bool is_beeping(Emulator* emu) { return emu->sound_timer.read() > 0; }
+bool requesting_beep(Emulator* emu) { return emu->sound_timer.read() > 0; }
 
 // Unfortunatley we need our Emulator to be a global variable due to
 // properly use the old C-style GLFW callbacks.
@@ -697,7 +708,6 @@ void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int 
     }
 
     if (key_id != -1) {
-        // FIXME: this doesn't properly account for instructions_per_cycle
         if (g_emu->register_awaiting_input >= 0 && state && !g_emu->input[key_id]) {
             const auto X = g_emu->register_awaiting_input;
             g_emu->V[X] = key_id;
@@ -712,8 +722,8 @@ void key_callback(GLFWwindow* win, int key, int /* scancode */, int action, int 
 
 struct GraphicsContext {
     static constexpr auto GRID_CELL_PIXELS = 10;
-    static constexpr auto screen_width_pixels = chip8::display_grid_width * GRID_CELL_PIXELS;
-    static constexpr auto screen_height_pixels = chip8::display_grid_height * GRID_CELL_PIXELS;
+    static constexpr auto screen_width_pixels = chip8::DISPLAY_GRID_WIDTH * GRID_CELL_PIXELS;
+    static constexpr auto screen_height_pixels = chip8::DISPLAY_GRID_HEIGHT * GRID_CELL_PIXELS;
 
     GLFWwindow* emu_window = nullptr;
     const GLFWvidmode* glfw_video_mode = nullptr;
@@ -722,7 +732,7 @@ struct GraphicsContext {
 
     ~GraphicsContext()
     {
-        glfwDestroyWindow(this->emu_window);
+        if (this->emu_window) glfwDestroyWindow(this->emu_window);
         glfwTerminate();
     }
 
@@ -732,8 +742,6 @@ private:
 
 std::unique_ptr<GraphicsContext> GraphicsContext::create()
 {
-    auto* ctx = new GraphicsContext();
-
     if (glfwInit() != GLFW_TRUE) {
         fprintf(stderr, "Failed to initialize glfw!\n");
         return nullptr;
@@ -758,11 +766,12 @@ std::unique_ptr<GraphicsContext> GraphicsContext::create()
             CHIP8_VERSION_MINOR);
 #endif
 
+    auto ctx = std::unique_ptr<GraphicsContext>(new GraphicsContext());
+
     ctx->emu_window = glfwCreateWindow(screen_width_pixels, screen_height_pixels,
                                        window_name_buffer, NULL, NULL);
 
     if (ctx->emu_window == nullptr) {
-        glfwTerminate();
         return nullptr;
     }
 
@@ -777,14 +786,13 @@ std::unique_ptr<GraphicsContext> GraphicsContext::create()
     const GLenum err = glewInit();
     if (err != GLEW_OK) {
         fprintf(stderr, "GLEW Error: %s\n", glewGetErrorString(err));
-        delete ctx;
         return nullptr;
     }
 
     const GLubyte* renderer = glGetString(GL_RENDERER); // get renderer string
     const GLubyte* version = glGetString(GL_VERSION);   // version as a string
-    fprintf(stderr, "Renderer: %s\n", renderer);
-    fprintf(stderr, "OpenGL version supported %s\n", version);
+    fprintf(stderr, "OpenGL Renderer Device: %s\n", renderer);
+    fprintf(stderr, "OpenGL Version Supported %s\n", version);
 
     glfwSetKeyCallback(ctx->emu_window, key_callback);
 
@@ -792,13 +800,13 @@ std::unique_ptr<GraphicsContext> GraphicsContext::create()
 
     glfwSwapInterval(1); // enable vertical sync
 
-    return std::unique_ptr<GraphicsContext>(ctx);
-} // namespace chip8
+    return ctx;
+}
 
 void draw_screen(Emulator* emu, GraphicsContext* gfx)
 {
-    constexpr auto gw = chip8::display_grid_width;
-    constexpr auto gh = chip8::display_grid_height;
+    constexpr auto gw = DISPLAY_GRID_WIDTH;
+    constexpr auto gh = DISPLAY_GRID_HEIGHT;
     constexpr float grid_spacing_x = 2.f / gw;
     constexpr float grid_spacing_y = 2.f / gh;
 
@@ -807,8 +815,8 @@ void draw_screen(Emulator* emu, GraphicsContext* gfx)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glColor3f(0.96484375, 0.62109375, 0.47265625);
 
-    for (auto ix = 0; ix < chip8::display_grid_width; ix++) {
-        for (auto iy = 0; iy < chip8::display_grid_height; iy++) {
+    for (auto ix = 0; ix < chip8::DISPLAY_GRID_WIDTH; ix++) {
+        for (auto iy = 0; iy < chip8::DISPLAY_GRID_HEIGHT; iy++) {
             if (gfx_buffer[iy * gw + ix]) {
                 const float x0 = -1.f + ix * grid_spacing_x;
                 const float y0 = 1.f - iy * grid_spacing_y;
@@ -828,6 +836,30 @@ void draw_screen(Emulator* emu, GraphicsContext* gfx)
     glfwSwapBuffers(gfx->emu_window);
 }
 
+void main_loop(Emulator* emu, GraphicsContext* gfx, AudioContext* audio)
+{
+    bool currently_beeping = false;
+
+    while (!glfwWindowShouldClose(gfx->emu_window)) {
+        glfwPollEvents();
+
+        for (auto i = 0; i < chip8::INSTRUCTIONS_PER_FRAME; i++) {
+            emulate_cycle(emu);
+        }
+
+        if (requesting_beep(emu) && !currently_beeping) {
+            start_beep(audio);
+            currently_beeping = true;
+        }
+        else if (!requesting_beep(emu) && currently_beeping) {
+            stop_beep(audio);
+            currently_beeping = false;
+        }
+
+        draw_screen(emu, gfx);
+    }
+}
+
 } // namespace chip8
 
 int main(int argc, char* argv[])
@@ -835,9 +867,12 @@ int main(int argc, char* argv[])
     // seed the random number generator
     srand((unsigned)time(NULL));
 
-    const std::string rom_path = (fs::path(CHIP8_ASSETS_DIR) / fs::path("roms") /
-                                  fs::path(argc > 1 ? argv[1] : "INVADERS"))
-                                     .string();
+    // clang-format off
+    const std::string rom_path = ( fs::path(CHIP8_ASSETS_DIR)
+                                 / fs::path("roms")
+                                 / fs::path(argc > 1 ? argv[1] : "INVADERS")
+                                 ).string();
+    // clang-format on
 
     chip8::g_emu = chip8::Emulator::create(rom_path.c_str());
     if (!chip8::g_emu) return EXIT_FAILURE;
@@ -848,26 +883,7 @@ int main(int argc, char* argv[])
     auto audio = chip8::AudioContext::create();
     if (!audio) return EXIT_FAILURE;
 
-    bool currently_beeping = false;
-
-    while (!glfwWindowShouldClose(gfx->emu_window)) {
-        glfwPollEvents();
-
-        for (auto i = 0; i < chip8::instructions_per_frame; i++) {
-            emulate_cycle(chip8::g_emu.get());
-        }
-
-        if (is_beeping(chip8::g_emu.get()) && !currently_beeping) {
-            chip8::start_beep(audio.get());
-            currently_beeping = true;
-        }
-        else if (!is_beeping(chip8::g_emu.get()) && currently_beeping) {
-            chip8::stop_beep(audio.get());
-            currently_beeping = false;
-        }
-
-        draw_screen(chip8::g_emu.get(), gfx.get());
-    }
+    chip8::main_loop(chip8::g_emu.get(), gfx.get(), audio.get());
 
     return EXIT_SUCCESS;
 }
